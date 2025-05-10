@@ -80,9 +80,29 @@ impl CPU {
 
     pub fn step(&mut self) {
         let opcode = self.memory.read(self.pc);
+        let block = opcode & 0b11;
+
         self.pc += 1;
-        match opcode {
-            _ => unimplemented!("Unknown opcode: {:#04X}", opcode),
+        match block {
+            0 => self.instruction_step(opcode),
+            1 => self.alu_step(opcode),
+            2 => self.rmw_step(opcode),
+            3 => self.unofficial_step(opcode),
+            _ => unreachable!(),   
         }
     }
+
+    fn instruction_step(&mut self, opcode: u8) {
+    }
+
+    fn alu_step(&mut self, opcode: u8) {
+    }
+
+    fn rmw_step(&mut self, opcode: u8) {
+    }
+
+    fn unofficial_step(&mut self, opcode: u8) {
+        unimplemented!("UNOFFICIAL OPCODE: {:#X}", opcode);
+    }
+
 }
