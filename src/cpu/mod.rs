@@ -1,8 +1,10 @@
 // https://www.nesdev.org/wiki/Instruction_reference
-// 6502 CPU
+// 6502 Cpu
 // https://www.nesdev.org/wiki/Emulator_tests Tests
 
 pub mod memory;
+use std::time::Duration;
+
 pub use memory::*;
 pub mod logic;
 pub use logic::*;
@@ -27,7 +29,7 @@ macro_rules! debug_log {
 
 
 use crate::Ines;
-const CPU_FREQUENCY: usize = 1_789_773; 
+const Cpu_FREQUENCY: usize = 1_789_773; 
 const STACK_START: u16 = 0x0100; 
 const STACK_LAST: u16 = 0x01FF; 
 
@@ -96,7 +98,7 @@ pub enum StatusFlags {
 }
 
 
-pub struct CPU {
+pub struct Cpu {
     a: u8, // Accumulator
     x: u8, // X Register
     y: u8, // Y Register
@@ -104,11 +106,12 @@ pub struct CPU {
     s: u8, // Stack Pointer
     p: StatusFlag, // Processor Status
     memory: Memory, // Memory
+    last_cycle_time: Duration
 }
 
-impl Default for CPU {
+impl Default for Cpu {
     fn default() -> Self {
-        CPU {
+        Cpu {
             a: 0,
             x: 0,
             y: 0,
@@ -116,17 +119,22 @@ impl Default for CPU {
             s: 0xFD, // Stack Pointer
             p: StatusFlag::default(),
             memory: Memory::default(),
+            last_cycle_time: Duration::new(0, 0),
         }
     }
 }
 
-impl CPU {
+impl Cpu {
     pub fn new() -> Self {
-        CPU::default()
+        Cpu::default()
     }
 
-    fn wait_n_cycle(&self, n: u8) {
-
+    fn wait_n_cycle(&mut self, n: u8) {
+        let cycle_time = Duration::from_nanos((1_000_000_000 / Cpu_FREQUENCY) as u64);
+        let wait_time = cycle_time * n as u32;
+        std::thread::sleep(wait_time);
+        // TODO: take into account the emulator speed
+        self.last_cycle_time = wait_time;
     }
 
     fn get_next_byte(&mut self) -> u8 {
@@ -191,7 +199,6 @@ impl CPU {
         // https://www.nesdev.org/2A03%20technical%20reference.txt
         let opcode = self.get_next_byte();
         let block = opcode & 0b11;
-
         match block {
             0 => self.instruction_step(opcode),
             1 => self.alu_step(opcode),
@@ -202,6 +209,7 @@ impl CPU {
     }
 
     fn instruction_step(&mut self, opcode: u8) {
+
         match opcode {
             0x78 => { // SEI
                 trace_log!(self, "SEI");
@@ -355,7 +363,7 @@ impl CPU {
             },
             0xC8 => { // INY - Increment Y
                 trace_log!(self, "INY");
-                self.y = self.x.wrapping_add(1);
+                self.y = self.y.wrapping_add(1);
                 self.p.set_zn(self.y);
                 self.wait_n_cycle(1);
             },
@@ -366,7 +374,6 @@ impl CPU {
     }
 
     fn alu_step(&mut self, opcode: u8) {
-        trace_log!(self, "ALU OPCODE: {:#X}", opcode);
         match opcode {
             0xA9 => { // LDA - Load A #Immediate
                 trace_log!(self, "LDA");
@@ -560,7 +567,6 @@ impl CPU {
     }
 
     fn rmw_step(&mut self, opcode: u8) {
-        trace_log!(self, "RMW OPCODE: {:#X}", opcode);
         match opcode {
             0xA2 => { // LDX #Immediate	
                 trace_log!(self, "LDX");

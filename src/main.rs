@@ -69,8 +69,8 @@ pub fn read_ines(data: &[u8]) -> Result<Ines, &'static str> {
 }
 
 fn main() {
-    // Initialize CPU
-    let mut cpu = cpu::CPU::default();
+    // Initialize Cpu
+    let mut cpu = cpu::Cpu::default();
 
     // Get ROM path from command line arguments
     let args: Vec<String> = std::env::args().collect();
