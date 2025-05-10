@@ -367,6 +367,16 @@ impl Cpu {
                 self.p.set_zn(self.y);
                 self.wait_n_cycle(1);
             },
+            0x00 => { // BRK - Break (software IRQ)
+                trace_log!(self, "BRK");
+                self.push_u16(self.pc+1);
+                self.push(self.p.0 | 0b0011_0000);
+                self.pc = self.memory.read_u16(0xFFFE);
+
+                self.p.set(StatusFlags::InterruptDisable);
+                self.p.set(StatusFlags::BFlag);
+                self.wait_n_cycle(6);
+            }
             _ => {
                 panic!("{:#X} Instruction step: Unknown instruction: {:#X}", self.pc, opcode);
             }
@@ -649,6 +659,7 @@ impl Cpu {
     }
 
     fn unofficial_step(&mut self, opcode: u8) {
+        trace_log!(self, "{:X}", opcode);
         unimplemented!("UNOFFICIAL OPCODE: {:#X}", opcode);
     }
 
