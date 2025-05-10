@@ -478,6 +478,57 @@ impl CPU {
                 self.cmp(self.a, value);
                 self.wait_n_cycle(1);
             },
+            0xC5 => { // CMP - Compare Zero Page
+                trace_log!(self, "CMP (Zero Page)");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                self.cmp(self.a, value);
+                self.wait_n_cycle(1);
+            },
+            0xD5 => { // CMP - Compare (Zero Page,x)
+                trace_log!(self, "CMP (Zero Page, x)");
+                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16);
+                let value = self.memory.read(addr);
+                self.cmp(self.a, value);
+                self.wait_n_cycle(1);
+            },
+            0xCD => { // CMP - Compare A Absolute
+                trace_log!(self, "CMP (Absolute)");
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                self.cmp(self.a, value);
+                self.wait_n_cycle(1);
+            },
+            0xDD => { // CMP - Compare A Absolute,x
+                trace_log!(self, "CMP (Absolute, x)");
+                
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.x as u16);
+                let crossed = (base_addr & 0xFF00) != (addr & 0xFF00);
+                
+                let value = self.memory.read(addr);
+                self.cmp(self.a, value);
+                if crossed {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0xD9 => { // CMP - Compare A Absolute
+                trace_log!(self, "CMP (Absolute, y)");
+                
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.y as u16);
+                let crossed = (base_addr & 0xFF00) != (addr & 0xFF00);
+                
+                let value = self.memory.read(addr);
+                self.cmp(self.a, value);
+                if crossed {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
             _ => {
                 panic!("{:X} Unknown ALU instruction: {:#X}", self.pc, opcode);
             }
