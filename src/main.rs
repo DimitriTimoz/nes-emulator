@@ -82,8 +82,13 @@ fn main() {
 
     // Load ROM into memory
     let rom_data = std::fs::read(rom_path).expect("Failed to read ROM file");
-    let ines = read_ines(&rom_data).expect("Failed to read INES header");
-    cpu.load_ines(ines);
+    if rom_path.ends_with("bin") {
+        cpu.load_rom(rom_data.as_slice());
+
+    } else {
+        let ines = read_ines(&rom_data).expect("Failed to read INES header");
+        cpu.load_ines(ines);
+    }
     cpu.reset();
     loop {
         cpu.step();

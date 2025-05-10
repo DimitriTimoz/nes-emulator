@@ -7,6 +7,25 @@ pub use memory::*;
 pub mod logic;
 pub use logic::*;
 
+macro_rules! trace_log {
+    ($self:ident, $fmt:literal $(, $arg:expr)* $(,)?) => {
+        #[cfg(debug_assertions)]
+        {
+            println!(concat!("{:04X}: ", $fmt), $self.pc-1 $(, $arg)*);
+        }
+    };
+}
+
+macro_rules! debug_log {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        {
+            println!($($arg)*);
+        }
+    };
+}
+
+
 use crate::Ines;
 const CPU_FREQUENCY: usize = 1_789_773; 
 const STACK_START: u16 = 0x0100; 
@@ -149,13 +168,22 @@ impl CPU {
     }
 
     pub fn reset(&mut self) {
-        self.pc = self.memory.read_reset_vector();
+        let lo = self.memory.read(0xFFFC) as u16;
+        let hi = self.memory.read(0xFFFD) as u16;
+        self.pc = (hi << 8) | lo;
+
         self.s = 0xFD; 
         self.p = StatusFlag::default();
     }
 
     pub fn load_ines(&mut self, ines: Ines) {
         self.memory.load_prg(&ines.prg_rom);
+    }
+
+     pub fn load_rom(&mut self, room: &[u8]) {
+        self.memory.load_rom(room);
+        self.memory.write(0xFFFC, 0x00);
+        self.memory.write(0xFFFD, 0x04);
     }
 
     pub fn step(&mut self) {
@@ -174,20 +202,23 @@ impl CPU {
     }
 
     fn instruction_step(&mut self, opcode: u8) {
-        println!("INS OPCODE: {:#X}", opcode);
-
+        debug_log!("INSTRUCTION OPCODE: {:#X}", opcode);
         match opcode {
             0x78 => { // SEI
+                trace_log!(self, "SEI");
                 self.p.set(StatusFlags::InterruptDisable);
             }
             0xD8 => { // CLD
+                trace_log!(self, "CLD");
                 self.p.clear(StatusFlags::BFlag);
             },
             0xA0 => { // LDY - Load Y #Immediate
+                trace_log!(self, "LDY");
                 self.y = self.get_next_byte();
                 self.p.set_last_op_neg_zero(self.y);
             },
             0xD0 => { // BNE - Branch if Not Equal
+                trace_log!(self, "BNE");
                 let addr = self.get_next_byte();
                 if !self.p.is_set(StatusFlags::Zero) {
                     let value = self.memory.read(addr as u16) as i8;
@@ -202,6 +233,7 @@ impl CPU {
                 }
             },
             0x10 => { // BPL - Branch if Plus
+                trace_log!(self, "BPL");
                 let addr = self.get_next_byte();
                 if !self.p.is_set(StatusFlags::Negative) {
                     let value = self.memory.read(addr as u16) as i8;
@@ -216,6 +248,7 @@ impl CPU {
                 }
             },
             0x90 => { // BCC - Branch if Carry Clear
+                trace_log!(self, "BCC");
                 let addr = self.get_next_byte();
                 if !self.p.is_set(StatusFlags::Carry) {
                     let value = self.memory.read(addr as u16) as i8;
@@ -230,6 +263,7 @@ impl CPU {
                 }
             },
             0x2C => { // BIT - Bit Test (Absolute)
+                trace_log!(self, "BIT");
                 let addr = self.get_next_u16();
                 let value = self.memory.read(addr);
                 let result = value | self.a;
@@ -238,105 +272,127 @@ impl CPU {
                 self.wait_n_cycle(1);
             },
             0x20 => { // JSR - Jump to Subroutine
+                trace_log!(self, "JSR");
                 let addr = self.get_next_u16(); 
                 self.push_u16(self.pc - 1);
                 self.pc = addr;
                 self.wait_n_cycle(3);
             },
             0x4C => { // JMP - Jump
+                trace_log!(self, "JMP");
                 let addr = self.get_next_u16(); 
+                if addr == (self.pc-3) {
+                    panic!("JUMP TO SAME ADDRESS: {:#X}", addr);
+                } 
                 self.pc = addr;
             },
             0x6C => { // JMP - Jump (indirect buggy)
+                trace_log!(self, "JMP");
                 let addr = self.get_next_u16(); 
                 let pc = self.memory.read_u16_buggy(addr);
                 self.pc = pc;
                 self.wait_n_cycle(2);
             },
             0x60 => { // RTS - Return from Subroutine
+                trace_log!(self, "RTS");
                 let addr = self.pull_u16();
                 self.pc = addr.wrapping_add(1);
                 self.wait_n_cycle(5);
             },
             0x18 => { // CLC - Clear Carry
+                trace_log!(self, "CLC");
                 self.p.clear(StatusFlags::Carry);
                 self.wait_n_cycle(1);
             },
             0x38 => { // SEC - Set Carry
+                trace_log!(self, "SEC");
                 self.p.set(StatusFlags::Carry);
                 self.wait_n_cycle(1);
             },
             0x88 => { // DEY - Decrement Y
+                trace_log!(self, "DEY");
                 self.y = self.y.wrapping_sub(1);
                 self.p.set_last_op_neg_zero(self.y);
                 self.wait_n_cycle(1);
             },
             0x48 => { // PHA - Push A
+                trace_log!(self, "PHA");
                 self.push(self.a);
                 self.wait_n_cycle(2);
             },
             0x68 => { // PLA - Pull A
+                trace_log!(self, "PLA");
                 self.a = self.pull();
                 self.p.set_last_op_neg_zero(self.a);
                 self.wait_n_cycle(3);
             },
             0xE0 => { // CPX - Compare X #Immediate	
+                trace_log!(self, "CPX");
                 let value = self.get_next_byte();
                 self.cmp(self.x,value);
             },
             0xE4 => { // CPX - Compare X Zero Page	
+                trace_log!(self, "CPX");
                 let addr = self.get_next_byte() as u16;
                 let value = self.memory.read(addr);
                 self.cmp(self.x,value);
                 self.wait_n_cycle(1);
             },
             0xEC => { // CPX - Compare X Absolute	
+                trace_log!(self, "CPX");
                 let addr = self.get_next_u16();
                 let value = self.memory.read(addr);
                 self.cmp(self.x,value);
                 self.wait_n_cycle(1);
             }
             _ => {
-                panic!("Unknown instruction: {:#X}", opcode);
+                panic!("{:#X} Unknown instruction: {:#X}", self.pc, opcode);
             }
         } 
     }
 
     fn alu_step(&mut self, opcode: u8) {
-        println!("ALU OPCODE: {:#X}", opcode);
+        trace_log!(self, "ALU OPCODE: {:#X}", opcode);
         match opcode {
             0xA9 => { // LDA - Load A #Immediate
+                trace_log!(self, "LDA");
                 self.a = self.get_next_byte();
                 self.p.set_last_op_neg_zero(self.a);
             },
             0xA5 => { // LDA - Load A #Zero Page	
+                trace_log!(self, "LDA");
                 let addr = self.get_next_byte() as u16;
                 self.a = self.memory.read(addr);
                 self.p.set_last_op_neg_zero(self.a);
                 self.wait_n_cycle(1);
             },
             0x8D => { // STA - Store A (Absolute)
+                trace_log!(self, "STA");
                 let addr = self.get_next_u16();
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(1);
             },
             0x85 => { // STA - Store A  (Zero Page)
+                trace_log!(self, "STA");
                 let addr = self.get_next_byte() as u16;
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(1);
             },
             0x91 => { // STA - Store A #(Indirect),Y
+                trace_log!(self, "STA");
                 let mut addr  = self.get_next_byte() as u16;
                 addr = addr.wrapping_add(self.y as u16);
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(4);
             },
             0x9D => { // STA - Store A #Absolute,X	
+                trace_log!(self, "STA");
                 let addr = self.get_next_u16().wrapping_add(self.x as u16);
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(2);
             },
             0x01 => { // ORA - Bitwise OR #(Indirect,X)
+                trace_log!(self, "ORA");
                 let value = self.get_next_byte();
                 let zp_addr =  value.wrapping_add(self.x);
                 let effective_addr = self.memory.read(zp_addr as u16);
@@ -346,6 +402,7 @@ impl CPU {
                 self.wait_n_cycle(4);
             },
             0xE5 => { // SBC - Subtract with Carry
+                trace_log!(self, "SBC");
                 let addr = self.get_next_byte() as u16;
                 let value  = self.memory.read(addr);
                 let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
@@ -355,6 +412,7 @@ impl CPU {
                 self.wait_n_cycle(1);
             },
             0x69 => { // ADC - Add with Carry
+                trace_log!(self, "ADC");
                 let addr = self.get_next_byte() as u16;
                 let value  = self.memory.read(addr);
                 let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
@@ -363,40 +421,46 @@ impl CPU {
                 self.p.set_all(a, carry || carry2);
             },
             0xC9 => { // CMP - Compare A
+                trace_log!(self, "CMP");
                 let value = self.get_next_byte();
                 self.cmp(self.a, value);
                 self.wait_n_cycle(1);
             },
             _ => {
-                println!("Unknown ALU instruction: {:#X}", opcode);
+                trace_log!(self, "Unknown ALU instruction: {:#X}", opcode);
             }
         }
 
     }
 
     fn rmw_step(&mut self, opcode: u8) {
-        println!("RMW OPCODE: {:#X}", opcode);
+        trace_log!(self, "RMW OPCODE: {:#X}", opcode);
         match opcode {
             0xA2 => { // LDX #Immediate	
+                trace_log!(self, "LDX");
                 self.x = self.get_next_byte();
                 self.p.set_last_op_neg_zero(self.x);
             },
             0xA6 => { // LDX - Load X # Zero Page	
+                trace_log!(self, "LDX");
                 let addr = self.get_next_byte() as u16;
                 self.x = self.memory.read(addr);
                 self.p.set_last_op_neg_zero(self.x);
                 self.wait_n_cycle(1);
             },
             0x9A => { // TXS - Transfer X to Stack Pointer
+                trace_log!(self, "TXS");
                 self.s = self.x;
                 self.wait_n_cycle(1);
             }
             0xCA => { // DEX - Decrement X
+                trace_log!(self, "DEX");
                 self.x -= 1;
                 self.p.set_last_op_neg_zero(self.x);
                 self.wait_n_cycle(1);
             },
             0xE6 => { // INC - Increment Memory
+                trace_log!(self, "INC");
                 let addr = self.get_next_byte() as u16;
                 let mut value = self.memory.read(addr);
                 value = value.wrapping_add(1);
@@ -404,18 +468,20 @@ impl CPU {
                 self.p.set_last_op_neg_zero(value);
                 self.wait_n_cycle(3);
             },
-            0x8E => { // STX - Store X #Absolute
+            0x8E => { // STX - Store X #Absolute    
+                trace_log!(self, "STX");
                 let addr = self.get_next_u16();
                 self.memory.write(addr, self.x);
                 self.wait_n_cycle(1);
             },
             0x86 => { // STX - Store X #Zero Page
+                trace_log!(self, "STX");
                 let addr = self.get_next_byte() as u16;
                 self.memory.write(addr, self.x);
                 self.wait_n_cycle(1);
             }
             _ => {
-                println!("Unknown RMW instruction: {:#X}", opcode);
+                debug_log!("Unknown RMW instruction: {:#X}", opcode);
             }
             
         }

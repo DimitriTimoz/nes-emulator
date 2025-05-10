@@ -46,7 +46,7 @@ impl Memory {
         self.0[start_addr as usize..=end_addr as usize].copy_from_slice(prg_rom);
     }
 
-    pub fn read_reset_vector(&self) -> u16 {
-        self.read_u16(0xFFFC)
+    pub fn load_rom(&mut self, room: &[u8]) {
+        self.0.copy_from_slice(room);   
     }
 }
