@@ -91,8 +91,8 @@ pub enum StatusFlags {
     Decimal = 0b000_1000,
     BFlag = 0b001_0000,
     // Not used
-    Overflow = 0b010_0000,
-    Negative = 0b100_0000,
+    Overflow = 0b0100_0000,
+    Negative = 0b1000_0000,
 }
 
 
@@ -337,8 +337,10 @@ impl CPU {
                 self.p.set_zn(self.y);
             },
             0x28 => { // PLP - Pull Processor Status
+                let a = self.pull();
                 self.p.0 &= !0b11001111;
-                self.p.0 |= self.pull() & 0b11001111;
+                self.p.0 |= a & 0b11001111;
+                println!("flags: {:8b}", self.p.0);
                 self.wait_n_cycle(3);
             }
             _ => {
