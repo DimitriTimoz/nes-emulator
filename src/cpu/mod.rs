@@ -291,7 +291,7 @@ impl CPU {
             0x9D => { // STA - Store A #Absolute,X	
                 let address = self.get_next_u16().wrapping_add(self.x as u16);
                 self.memory.write(address, self.a);
-                self.wait_n_cycle(1);
+                self.wait_n_cycle(2);
             },
             0x01 => { // ORA - Bitwise OR #(Indirect,X)
                 let value = self.get_next_byte();
@@ -340,6 +340,12 @@ impl CPU {
             0xA2 => { // LDX #Immediate	
                 self.x = self.get_next_byte();
                 self.p.set_last_op_neg_zero(self.x);
+            },
+            0xA6 => { // LDX - Load X # Zero Page	
+                let address = self.get_next_byte() as u16;
+                self.x = self.memory.read(address);
+                self.p.set_last_op_neg_zero(self.x);
+                self.wait_n_cycle(1);
             },
             0x9A => { // TXS - Transfer X to Stack Pointer
                 self.s = self.x;
