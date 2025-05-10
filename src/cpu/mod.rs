@@ -206,6 +206,11 @@ impl CPU {
                 self.s = self.x;
                 self.wait_n_cycle(1);
             }
+            0xCA => { // DEX - Decrement X
+                self.x -= 1;
+                self.p.set_last_op_neg_zero(self.x);
+                self.wait_n_cycle(1);
+            }
             _ => {
                 println!("Unknown RMW instruction: {:#X}", opcode);
             }
