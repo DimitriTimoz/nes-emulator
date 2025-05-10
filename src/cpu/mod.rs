@@ -591,6 +591,19 @@ impl CPU {
                 trace_log!(self, "TAX");
                 self.x = self.a;
                 self.p.set_zn(self.x);
+                self.wait_n_cycle(1);
+            },
+            0x8A => { // TAX - Transfer X to A
+                trace_log!(self, "TXA");
+                self.a = self.x;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0xBA => { // TAX - Transfer S to X
+                trace_log!(self, "TSX");
+                self.x = self.s;
+                self.p.set_zn(self.x);
+                self.wait_n_cycle(1);
             }
             _ => {
                 panic!("Unknown RMW instruction: {:#X}", opcode);
