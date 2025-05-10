@@ -1,9 +1,12 @@
 // https://www.nesdev.org/wiki/Instruction_reference
 // 6502 CPU
+// https://www.nesdev.org/wiki/Emulator_tests Tests
 
+pub mod memory;
+use crate::{cpu::memory::Memory, Ines};
 const CPU_FREQUENCY: usize = 1_789_773; 
 
-struct StatusFlag(u8);
+pub struct StatusFlag(u8);
 
 impl StatusFlag {
     fn set(&mut self, flag: StatusFlags) {
@@ -25,7 +28,7 @@ impl Default for StatusFlag {
     }
 }
 
-enum StatusFlags {
+pub enum StatusFlags {
     Carry = 0b000_0001,
     Zero = 0b000_0010,
     InterruptDisable = 0b000_0100,
@@ -36,13 +39,50 @@ enum StatusFlags {
 }
 
 
-struct CPU {
+pub struct CPU {
     a: u8, // Accumulator
     x: u8, // X Register
     y: u8, // Y Register
     pc: u16, // Program Counter
     s: u8, // Stack Pointer
     p: StatusFlag, // Processor Status
-    memory: [u8; 0xFFFF + 1], // Memory
+    memory: Memory, // Memory
 }
 
+impl Default for CPU {
+    fn default() -> Self {
+        CPU {
+            a: 0,
+            x: 0,
+            y: 0,
+            pc: 0x8000, // Start of ROM
+            s: 0xFD, // Stack Pointer
+            p: StatusFlag::default(),
+            memory: Memory::default(),
+        }
+    }
+}
+
+impl CPU {
+    pub fn new() -> Self {
+        CPU::default()
+    }
+
+    pub fn reset(&mut self) {
+        self.pc = self.memory.read_reset_vector();
+        self.s = 0xFD; 
+        self.p = StatusFlag::default();
+    }
+
+    pub fn load_ines(&mut self, ines: Ines) {
+        self.memory.load_prg(&ines.prg_rom);
+    }
+
+    pub fn step(&mut self) {
+        let opcode = self.memory.read(self.pc);
+        self.pc += 1;
+        match opcode {
+            _ => unimplemented!("Unknown opcode: {:#04X}", opcode),
+        }
+    }
+}
