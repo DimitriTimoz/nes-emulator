@@ -337,10 +337,16 @@ impl CPU {
                 self.p.set_zn(self.y);
             },
             0x28 => { // PLP - Pull Processor Status
+                trace_log!(self, "PLP");
                 self.p.0 &= !0b11001111;
                 self.p.0 |= self.pull() & 0b11001111;
-                self.wait_n_cycle(3);
-            }
+                self.wait_n_cycle(2);
+            },
+            0x08 => { // PHP - Push Processor Status
+                trace_log!(self, "PHP");
+                self.push(self.p.0 | 0b00110000);
+                self.wait_n_cycle(2);
+            },
             _ => {
                 panic!("{:#X} Instruction step: Unknown instruction: {:#X}", self.pc, opcode);
             }
