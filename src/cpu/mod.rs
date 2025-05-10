@@ -239,6 +239,16 @@ impl CPU {
                 self.pc = addr;
                 self.wait_n_cycle(3);
             },
+            0x4C => { // JMP - Jump
+                let addr = self.get_next_u16(); 
+                self.pc = addr;
+            },
+            0x6C => { // JMP - Jump (indirect buggy)
+                let addr = self.get_next_u16(); 
+                let pc = self.memory.read_u16_buggy(addr);
+                self.pc = pc;
+                self.wait_n_cycle(2);
+            },
             0x60 => { // RTS - Return from Subroutine
                 let addr = self.pop_u16();
                 self.pc = addr.wrapping_add(1);

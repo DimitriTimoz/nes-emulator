@@ -18,6 +18,17 @@ impl Memory {
         (high << 8) | low
     }
 
+    pub fn read_u16_buggy(&self, address: u16) -> u16 {
+        let low = self.read(address) as u16;
+        let high_address = if address & 0x00FF == 0x00FF {
+            address & 0xFF00
+        } else {
+            address + 1
+        };
+        let high = self.read(high_address) as u16;
+        (high << 8) | low
+    }
+
     pub fn write(&mut self, address: u16, value: u8) {
         self.0[address as usize] = value;
     }
