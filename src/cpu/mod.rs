@@ -134,7 +134,11 @@ impl CPU {
             }
             0xD8 => { // CLD
                 self.p.clear(StatusFlags::BFlag);
-            }
+            },
+            0xA0 => { // LDY - Load Y #Immediate
+                self.y = self.get_next_byte();
+                self.p.set_last_op_neg_zero(self.y);
+            },
             _ => {
                 println!("Unknown instruction: {:#X}", opcode);
             }
@@ -148,10 +152,27 @@ impl CPU {
                 self.a = self.get_next_byte();
                 self.p.set_last_op_neg_zero(self.a);
             },
-            0x8D => { // STA - Store A
+            0x8D | 0x85 => { // STA - Store A (Absolute	| Zero Page)
                 let address = self.get_next_u16();
                 self.memory.write(address, self.a);
-                self.wait_n_cycle(1);
+                if opcode == 0x8D {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0x91 => { // STA - Store A #(Indirect),Y
+                let mut address  = self.get_next_byte() as u16;
+                address += self.y as u16;
+                self.memory.write(address, self.a);
+                self.wait_n_cycle(4);
+            },
+            0x01 => { // ORA - Bitwise OR #(Indirect,X)
+                let value = self.get_next_byte();
+                let zp_address =  value + self.x;
+                let effective_addr = self.memory.read(zp_address as u16);
+                let value = self.memory.read(effective_addr as u16);
+                self.a |= value;
+                self.p.set_last_op_neg_zero(self.a);
+                self.wait_n_cycle(4);
             }
             _ => {
                 println!("Unknown ALU instruction: {:#X}", opcode);
@@ -165,8 +186,8 @@ impl CPU {
         match opcode {
             0xA2 => { // LDX #Immediate	
                 self.x = self.get_next_byte();
-                self.p.set_last_op_neg_zero(self.a);
-            }
+                self.p.set_last_op_neg_zero(self.x);
+            },
             0x9A => { // TXS - Transfer X to Stack Pointer
                 self.s = self.x;
                 self.wait_n_cycle(1);
