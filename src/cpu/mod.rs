@@ -258,6 +258,10 @@ impl CPU {
                 self.p.clear(StatusFlags::Carry);
                 self.wait_n_cycle(1);
             },
+            0x38 => { // SEC - Set Carry
+                self.p.set(StatusFlags::Carry);
+                self.wait_n_cycle(1);
+            },
             0x88 => { // DEY - Decrement Y
                 self.y = self.y.wrapping_sub(1);
                 self.p.set_last_op_neg_zero(self.y);
@@ -267,7 +271,7 @@ impl CPU {
                 self.push(self.a);
                 self.wait_n_cycle(2);
             },
-            0x68 => { // PHA - Push A
+            0x68 => { // PLA - Pull A
                 self.a = self.pull();
                 self.p.set_last_op_neg_zero(self.a);
                 self.wait_n_cycle(3);
