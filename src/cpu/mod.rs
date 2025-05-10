@@ -13,6 +13,19 @@ impl StatusFlag {
         self.0 |= flag as u8;
     }
 
+    fn set_state(&mut self, flag: StatusFlags, value: bool) {
+        if value {
+            self.set(flag);
+        } else {
+            self.clear(flag);
+        }
+    }
+
+    fn set_last_op_neg_zero(&mut self, value: u8) {
+        self.set_state(StatusFlags::Zero, value == 0);
+        self.set_state(StatusFlags::Negative, (value & (1 << 7)) != 0)
+    }
+
     fn clear(&mut self, flag: StatusFlags) {
         self.0 &= !(flag as u8);
     }
@@ -80,6 +93,13 @@ impl CPU {
         byte
     }
 
+    fn get_next_u16(&mut self) -> u16 {
+        let word = self.memory.read_u16(self.pc);
+        self.pc += 2;
+        self.wait_n_cycle(2);
+        word
+    }
+
     pub fn reset(&mut self) {
         self.pc = self.memory.read_reset_vector();
         self.s = 0xFD; 
@@ -91,6 +111,8 @@ impl CPU {
     }
 
     pub fn step(&mut self) {
+        // https://www.nesdev.org/wiki/Instruction_reference
+        // https://www.nesdev.org/2A03%20technical%20reference.txt
         let opcode = self.get_next_byte();
         let block = opcode & 0b11;
 
@@ -121,6 +143,20 @@ impl CPU {
 
     fn alu_step(&mut self, opcode: u8) {
         println!("ALU OPCODE: {:#X}", opcode);
+        match opcode {
+            0xA9 => { // LDA - Load A #Immediate
+                self.a = self.get_next_byte();
+                self.p.set_last_op_neg_zero(self.a);
+            },
+            0x8D => { // STA - Store A
+                let address = self.get_next_u16();
+                self.memory.write(address, self.a);
+                self.wait_n_cycle(1);
+            }
+            _ => {
+                println!("Unknown ALU instruction: {:#X}", opcode);
+            }
+        }
 
     }
 
@@ -129,6 +165,11 @@ impl CPU {
         match opcode {
             0xA2 => { // LDX #Immediate	
                 self.x = self.get_next_byte();
+                self.p.set_last_op_neg_zero(self.a);
+            }
+            0x9A => { // TXS - Transfer X to Stack Pointer
+                self.s = self.x;
+                self.wait_n_cycle(1);
             }
             _ => {
                 println!("Unknown RMW instruction: {:#X}", opcode);
