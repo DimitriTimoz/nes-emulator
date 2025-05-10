@@ -347,6 +347,18 @@ impl CPU {
                 self.push(self.p.0 | 0b00110000);
                 self.wait_n_cycle(2);
             },
+            0xE8 => { // INX - Increment X
+                trace_log!(self, "INX");
+                self.x = self.x.wrapping_add(1);
+                self.p.set_zn(self.x);
+                self.wait_n_cycle(1);
+            },
+            0xC8 => { // INY - Increment Y
+                trace_log!(self, "INY");
+                self.y = self.x.wrapping_add(1);
+                self.p.set_zn(self.y);
+                self.wait_n_cycle(1);
+            },
             _ => {
                 panic!("{:#X} Instruction step: Unknown instruction: {:#X}", self.pc, opcode);
             }
