@@ -3,7 +3,9 @@
 // https://www.nesdev.org/wiki/Emulator_tests Tests
 
 pub mod memory;
-use crate::{cpu::memory::Memory, Ines};
+pub use memory::*;
+pub mod logic;
+pub use logic::*;
 const CPU_FREQUENCY: usize = 1_789_773; 
 const STACK_START: u16 = 0x0100; 
 const STACK_LAST: u16 = 0x01FF; 
@@ -276,15 +278,22 @@ impl CPU {
                 self.p.set_last_op_neg_zero(self.a);
                 self.wait_n_cycle(3);
             },
-            0xC9 => { // CPX - Compare X
+            0xE0 => { // CPX - Compare X #Immediate	
+                let value = self.get_next_byte();
+                self.cmp(self.x,value);
+            },
+            0xC9 => { // CPX - Compare X Zero Page	
                 let addr = self.get_next_byte() as u16;
                 let value = self.memory.read(addr);
-                let result = self.x.wrapping_sub(value);
-                self.p.test_negative(result);
-                self.p.test_zero(result);
-                self.p.set_state(StatusFlags::Carry, self.x >= value);
+                self.cmp(self.x,value);
                 self.wait_n_cycle(1);
             },
+            0xEC => { // CPX - Compare X Absolute	
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                self.cmp(self.x,value);
+                self.wait_n_cycle(1);
+            }
             _ => {
                 panic!("Unknown instruction: {:#X}", opcode);
             }
