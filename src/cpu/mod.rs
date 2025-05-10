@@ -288,6 +288,11 @@ impl CPU {
                 self.memory.write(address, self.a);
                 self.wait_n_cycle(4);
             },
+            0x9D => { // STA - Store A #Absolute,X	
+                let address = self.get_next_u16().wrapping_add(self.x as u16);
+                self.memory.write(address, self.a);
+                self.wait_n_cycle(1);
+            },
             0x01 => { // ORA - Bitwise OR #(Indirect,X)
                 let value = self.get_next_byte();
                 let zp_address =  value.wrapping_add(self.x);
