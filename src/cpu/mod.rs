@@ -6,6 +6,8 @@ pub mod memory;
 pub use memory::*;
 pub mod logic;
 pub use logic::*;
+
+use crate::Ines;
 const CPU_FREQUENCY: usize = 1_789_773; 
 const STACK_START: u16 = 0x0100; 
 const STACK_LAST: u16 = 0x01FF; 
@@ -282,7 +284,7 @@ impl CPU {
                 let value = self.get_next_byte();
                 self.cmp(self.x,value);
             },
-            0xC9 => { // CPX - Compare X Zero Page	
+            0xE4 => { // CPX - Compare X Zero Page	
                 let addr = self.get_next_byte() as u16;
                 let value = self.memory.read(addr);
                 self.cmp(self.x,value);
@@ -362,10 +364,7 @@ impl CPU {
             },
             0xC9 => { // CMP - Compare A
                 let value = self.get_next_byte();
-                let result = self.a.wrapping_sub(value);
-                self.p.test_negative(result);
-                self.p.test_zero(result);
-                self.p.set_state(StatusFlags::Carry, self.a >= value);
+                self.cmp(self.a, value);
                 self.wait_n_cycle(1);
             },
             _ => {
