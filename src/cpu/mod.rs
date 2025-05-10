@@ -5,6 +5,8 @@
 pub mod memory;
 use crate::{cpu::memory::Memory, Ines};
 const CPU_FREQUENCY: usize = 1_789_773; 
+const STACK_START: u16 = 0x0100; 
+const STACK_LAST: u16 = 0x01FF; 
 
 pub struct StatusFlag(u8);
 
@@ -24,6 +26,10 @@ impl StatusFlag {
     fn set_last_op_neg_zero(&mut self, value: u8) {
         self.set_state(StatusFlags::Zero, value == 0);
         self.set_state(StatusFlags::Negative, (value & (1 << 7)) != 0)
+    }
+
+    fn set_overflow(&mut self, value: u8) {
+        self.set_state(StatusFlags::Overflow, (value & (1 << 6)) != 0);
     }
 
     fn clear(&mut self, flag: StatusFlags) {
@@ -100,6 +106,31 @@ impl CPU {
         word
     }
 
+    /// Stacks
+    pub fn push(&mut self, value: u8) {
+        let stack_address =  self.s as u16 + STACK_START;
+        self.memory.write(stack_address, value);
+        self.s -= 1;
+    }
+
+    pub fn push_u16(&mut self, value: u16) {
+        self.push((value >> 8) as u8); 
+        self.push((value & 0xFF) as u8);
+    }
+
+    pub fn pop(&mut self) -> u8 {
+        let stack_address: u16 =  self.s as u16 + STACK_START + 1;
+        let value = self.memory.read(stack_address);
+        self.pc += 1;
+        value
+    }
+
+     pub fn pop_u16(&mut self) -> u16 {
+        let low = self.pop() as u16;
+        let high = self.pop() as u16;
+        (high << 8) | low
+    }
+
     pub fn reset(&mut self) {
         self.pc = self.memory.read_reset_vector();
         self.s = 0xFD; 
@@ -167,6 +198,24 @@ impl CPU {
                     }
                 }
             },
+            0x2C => { // BIT - Bit Test (Absolute)
+                let address = self.get_next_u16();
+                let value = self.memory.read(address);
+                let result = value | self.a;
+                self.p.set_last_op_neg_zero(result);
+                self.p.set_overflow(result);
+                self.wait_n_cycle(1);
+            },
+            0x20 => { // JSR - Jump to Subroutine
+                self.push_u16(self.pc+1); // TODO: be sure of that
+                self.pc = self.get_next_u16();
+                self.wait_n_cycle(3);
+            },
+            0x60 => { // RTS - Return from Subroutine
+                let pc = self.pop_u16();
+                self.pc = pc + 1 ;
+                self.wait_n_cycle(5);
+            }
             _ => {
                 println!("Unknown instruction: {:#X}", opcode);
             }
