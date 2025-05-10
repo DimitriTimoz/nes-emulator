@@ -122,8 +122,8 @@ impl CPU {
 
     /// Stacks
     pub fn push(&mut self, value: u8) {
-        let stack_address =  self.s as u16 + STACK_START;
-        self.memory.write(stack_address, value);
+        let stack_addr =  self.s as u16 + STACK_START;
+        self.memory.write(stack_addr, value);
         self.s -= 1;
     }
 
@@ -132,15 +132,15 @@ impl CPU {
         self.push((value & 0xFF) as u8);
     }
 
-    pub fn pop(&mut self) -> u8 {
+    pub fn pull(&mut self) -> u8 {
         self.s = self.s.wrapping_add(1);
         let addr = self.s as u16 + STACK_START;
         self.memory.read(addr)
     }
 
-    pub fn pop_u16(&mut self) -> u16 {
-        let low = self.pop() as u16;
-        let high = self.pop() as u16;
+    pub fn pull_u16(&mut self) -> u16 {
+        let low = self.pull() as u16;
+        let high = self.pull() as u16;
         (high << 8) | low
     }
 
@@ -184,9 +184,9 @@ impl CPU {
                 self.p.set_last_op_neg_zero(self.y);
             },
             0xD0 => { // BNE - Branch if Not Equal
-                let address = self.get_next_byte();
+                let addr = self.get_next_byte();
                 if !self.p.is_set(StatusFlags::Zero) {
-                    let value = self.memory.read(address as u16) as i8;
+                    let value = self.memory.read(addr as u16) as i8;
                     let page = self.pc / 256;
                     self.pc = ((self.pc as i32) + value as i32) as u16;
                     let new_age = self.pc / 256;
@@ -198,9 +198,9 @@ impl CPU {
                 }
             },
             0x10 => { // BPL - Branch if Plus
-                let address = self.get_next_byte();
+                let addr = self.get_next_byte();
                 if !self.p.is_set(StatusFlags::Negative) {
-                    let value = self.memory.read(address as u16) as i8;
+                    let value = self.memory.read(addr as u16) as i8;
                     let page = self.pc / 256;
                     self.pc = ((self.pc as i32) + value as i32) as u16;
                     let new_age = self.pc / 256;
@@ -212,9 +212,9 @@ impl CPU {
                 }
             },
             0x90 => { // BCC - Branch if Carry Clear
-                let address = self.get_next_byte();
+                let addr = self.get_next_byte();
                 if !self.p.is_set(StatusFlags::Carry) {
-                    let value = self.memory.read(address as u16) as i8;
+                    let value = self.memory.read(addr as u16) as i8;
                     let page = self.pc / 256;
                     self.pc = ((self.pc as i32) + value as i32) as u16;
                     let new_age = self.pc / 256;
@@ -226,8 +226,8 @@ impl CPU {
                 }
             },
             0x2C => { // BIT - Bit Test (Absolute)
-                let address = self.get_next_u16();
-                let value = self.memory.read(address);
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
                 let result = value | self.a;
                 self.p.set_last_op_neg_zero(result);
                 self.p.set_overflow(result);
@@ -250,7 +250,7 @@ impl CPU {
                 self.wait_n_cycle(2);
             },
             0x60 => { // RTS - Return from Subroutine
-                let addr = self.pop_u16();
+                let addr = self.pull_u16();
                 self.pc = addr.wrapping_add(1);
                 self.wait_n_cycle(5);
             },
@@ -281,44 +281,44 @@ impl CPU {
                 self.p.set_last_op_neg_zero(self.a);
             },
             0xA5 => { // LDA - Load A #Zero Page	
-                let address = self.get_next_byte() as u16;
-                self.a = self.memory.read(address);
+                let addr = self.get_next_byte() as u16;
+                self.a = self.memory.read(addr);
                 self.p.set_last_op_neg_zero(self.a);
                 self.wait_n_cycle(1);
             },
             0x8D => { // STA - Store A (Absolute)
-                let address = self.get_next_u16();
-                self.memory.write(address, self.a);
+                let addr = self.get_next_u16();
+                self.memory.write(addr, self.a);
                 self.wait_n_cycle(1);
             },
             0x85 => { // STA - Store A  (Zero Page)
-                let address = self.get_next_byte() as u16;
-                self.memory.write(address, self.a);
+                let addr = self.get_next_byte() as u16;
+                self.memory.write(addr, self.a);
                 self.wait_n_cycle(1);
             },
             0x91 => { // STA - Store A #(Indirect),Y
-                let mut address  = self.get_next_byte() as u16;
-                address = address.wrapping_add(self.y as u16);
-                self.memory.write(address, self.a);
+                let mut addr  = self.get_next_byte() as u16;
+                addr = addr.wrapping_add(self.y as u16);
+                self.memory.write(addr, self.a);
                 self.wait_n_cycle(4);
             },
             0x9D => { // STA - Store A #Absolute,X	
-                let address = self.get_next_u16().wrapping_add(self.x as u16);
-                self.memory.write(address, self.a);
+                let addr = self.get_next_u16().wrapping_add(self.x as u16);
+                self.memory.write(addr, self.a);
                 self.wait_n_cycle(2);
             },
             0x01 => { // ORA - Bitwise OR #(Indirect,X)
                 let value = self.get_next_byte();
-                let zp_address =  value.wrapping_add(self.x);
-                let effective_addr = self.memory.read(zp_address as u16);
+                let zp_addr =  value.wrapping_add(self.x);
+                let effective_addr = self.memory.read(zp_addr as u16);
                 let value = self.memory.read(effective_addr as u16);
                 self.a |= value;
                 self.p.set_last_op_neg_zero(self.a);
                 self.wait_n_cycle(4);
             },
             0xE5 => { // SBC - Subtract with Carry
-                let address = self.get_next_byte() as u16;
-                let value  = self.memory.read(address);
+                let addr = self.get_next_byte() as u16;
+                let value  = self.memory.read(addr);
                 let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
                 let (a, carry2)  = self.a.overflowing_add(value);
                 self.a = a;
@@ -326,8 +326,8 @@ impl CPU {
                 self.wait_n_cycle(1);
             },
             0x69 => { // ADC - Add with Carry
-                let address = self.get_next_byte() as u16;
-                let value  = self.memory.read(address);
+                let addr = self.get_next_byte() as u16;
+                let value  = self.memory.read(addr);
                 let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
                 let (a, carry2)  = self.a.overflowing_add(value);
                 self.a = a;
@@ -356,8 +356,8 @@ impl CPU {
                 self.p.set_last_op_neg_zero(self.x);
             },
             0xA6 => { // LDX - Load X # Zero Page	
-                let address = self.get_next_byte() as u16;
-                self.x = self.memory.read(address);
+                let addr = self.get_next_byte() as u16;
+                self.x = self.memory.read(addr);
                 self.p.set_last_op_neg_zero(self.x);
                 self.wait_n_cycle(1);
             },
@@ -371,21 +371,21 @@ impl CPU {
                 self.wait_n_cycle(1);
             },
             0xE6 => { // INC - Increment Memory
-                let address = self.get_next_byte() as u16;
-                let mut value = self.memory.read(address);
+                let addr = self.get_next_byte() as u16;
+                let mut value = self.memory.read(addr);
                 value = value.wrapping_add(1);
-                self.memory.write(address, value);
+                self.memory.write(addr, value);
                 self.p.set_last_op_neg_zero(value);
                 self.wait_n_cycle(3);
             },
             0x8E => { // STX - Store X #Absolute
-                let address = self.get_next_u16();
-                self.memory.write(address, self.x);
+                let addr = self.get_next_u16();
+                self.memory.write(addr, self.x);
                 self.wait_n_cycle(1);
             },
             0x86 => { // STX - Store X #Zero Page
-                let address = self.get_next_byte() as u16;
-                self.memory.write(address, self.x);
+                let addr = self.get_next_byte() as u16;
+                self.memory.write(addr, self.x);
                 self.wait_n_cycle(1);
             }
             _ => {
