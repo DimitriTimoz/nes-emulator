@@ -28,6 +28,12 @@ impl StatusFlag {
         self.set_state(StatusFlags::Negative, (value & (1 << 7)) != 0)
     }
 
+    fn set_all(&mut self, value: u8, carry: bool) {
+        self.set_last_op_neg_zero(value);
+        self.set_overflow(value);
+        self.set_state(StatusFlags::Carry, carry);
+    }
+
     fn set_overflow(&mut self, value: u8) {
         self.set_state(StatusFlags::Overflow, (value & (1 << 6)) != 0);
     }
@@ -119,13 +125,12 @@ impl CPU {
     }
 
     pub fn pop(&mut self) -> u8 {
-        let stack_address: u16 =  self.s as u16 + STACK_START + 1;
-        let value = self.memory.read(stack_address);
-        self.pc += 1;
-        value
+        self.s = self.s.wrapping_add(1);
+        let addr = self.s as u16 + STACK_START;
+        self.memory.read(addr)
     }
 
-     pub fn pop_u16(&mut self) -> u16 {
+    pub fn pop_u16(&mut self) -> u16 {
         let low = self.pop() as u16;
         let high = self.pop() as u16;
         (high << 8) | low
@@ -207,13 +212,14 @@ impl CPU {
                 self.wait_n_cycle(1);
             },
             0x20 => { // JSR - Jump to Subroutine
-                self.push_u16(self.pc+1); // TODO: be sure of that
-                self.pc = self.get_next_u16();
+                let addr = self.get_next_u16(); 
+                self.push_u16(self.pc - 1);
+                self.pc = addr;
                 self.wait_n_cycle(3);
             },
             0x60 => { // RTS - Return from Subroutine
-                let pc = self.pop_u16();
-                self.pc = pc + 1 ;
+                let addr = self.pop_u16();
+                self.pc = addr.wrapping_add(1);
                 self.wait_n_cycle(5);
             },
             0x18 => { // CLC - Clear Carry
@@ -221,7 +227,7 @@ impl CPU {
                 self.wait_n_cycle(1);
             }
             _ => {
-                println!("Unknown instruction: {:#X}", opcode);
+                panic!("Unknown instruction: {:#X}", opcode);
             }
         } 
     }
@@ -242,19 +248,28 @@ impl CPU {
             },
             0x91 => { // STA - Store A #(Indirect),Y
                 let mut address  = self.get_next_byte() as u16;
-                address += self.y as u16;
+                address = address.wrapping_add(self.y as u16);
                 self.memory.write(address, self.a);
                 self.wait_n_cycle(4);
             },
             0x01 => { // ORA - Bitwise OR #(Indirect,X)
                 let value = self.get_next_byte();
-                let zp_address =  value + self.x;
+                let zp_address =  value.wrapping_add(self.x);
                 let effective_addr = self.memory.read(zp_address as u16);
                 let value = self.memory.read(effective_addr as u16);
                 self.a |= value;
                 self.p.set_last_op_neg_zero(self.a);
                 self.wait_n_cycle(4);
-            }
+            },
+            0xE5 => { // SBC - Subtract with Carry
+                let address = self.get_next_byte() as u16;
+                let value  = self.memory.read(address);
+                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                self.wait_n_cycle(1);
+            },
             _ => {
                 println!("Unknown ALU instruction: {:#X}", opcode);
             }
@@ -281,7 +296,7 @@ impl CPU {
             0xE6 => { // INC - Increment Memory
                 let address = self.get_next_byte() as u16;
                 let mut value = self.memory.read(address);
-                value += 1;
+                value = value.wrapping_add(1);
                 self.memory.write(address, value);
                 self.p.set_last_op_neg_zero(value);
                 self.wait_n_cycle(3);
