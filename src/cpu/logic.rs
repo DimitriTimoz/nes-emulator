@@ -9,14 +9,14 @@ impl CPU {
     }
 
     pub(crate) fn branch(&mut self, cond: bool) {
-        let offset = self.get_next_byte() as i8;   // <- signé
+        let offset = self.get_next_byte() as i8;   
         if cond {
-            let old_pc = self.pc;                  // PC pointe déjà après l’opérande
+            let old_pc = self.pc;       
             self.pc = self.pc.wrapping_add(offset as i16 as u16);
 
-            self.wait_n_cycle(1);                  // +1 cycle si branche prise
+            self.wait_n_cycle(1);
             if (old_pc & 0xFF00) != (self.pc & 0xFF00) {
-                self.wait_n_cycle(1);              // +1 cycle si changement de page
+                self.wait_n_cycle(1);
             }
         }
     }

@@ -417,14 +417,12 @@ impl CPU {
                 self.wait_n_cycle(1);
             },
             0x41 => { // (Indirect,X)	
-                trace_log!(self, "EOR (ind,X)");
-                let ptr = self.get_next_byte();
-                let zp_ptr = ptr.wrapping_add(self.x); 
+                trace_log!(self,"EOR (ind,X)");
+                let ptr   = self.get_next_byte();
+                let zp_ptr = ptr.wrapping_add(self.x);
 
                 let lo = self.memory.read(zp_ptr as u16);
-                let hi = self
-                    .memory
-                    .read(zp_ptr.wrapping_add(1) as u16);
+                let hi = self.memory.read(zp_ptr.wrapping_add(1) as u16);
                 let addr = ((hi as u16) << 8) | lo as u16;
 
                 let value = self.memory.read(addr);
@@ -444,8 +442,7 @@ impl CPU {
             },
             0x69 => { // ADC - Add with Carry
                 trace_log!(self, "ADC");
-                let addr = self.get_next_byte() as u16;
-                let value  = self.memory.read(addr);
+                let value = self.get_next_byte();
                 let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
                 let (a, carry2)  = self.a.overflowing_add(value);
                 self.a = a;
