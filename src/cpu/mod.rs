@@ -337,10 +337,8 @@ impl CPU {
                 self.p.set_zn(self.y);
             },
             0x28 => { // PLP - Pull Processor Status
-                let a = self.pull();
                 self.p.0 &= !0b11001111;
-                self.p.0 |= a & 0b11001111;
-                println!("flags: {:8b}", self.p.0);
+                self.p.0 |= self.pull() & 0b11001111;
                 self.wait_n_cycle(3);
             }
             _ => {
