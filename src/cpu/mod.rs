@@ -375,6 +375,63 @@ impl CPU {
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(4);
             },
+            // Bitwise Exclusive OR
+            0x49 => {
+                trace_log!(self, "EOR");
+                let value = self.get_next_byte();
+                self.bitwise_xor(value);
+            },
+            0x45 => { // Zero Page
+                trace_log!(self, "EOR");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                self.bitwise_xor(value);
+                self.wait_n_cycle(1);
+            },
+            0x55 => { // Zero Page,X
+                trace_log!(self, "EOR");
+                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16);
+                let value = self.memory.read(addr);
+                self.bitwise_xor(value);
+                self.wait_n_cycle(2);
+            },
+            0x4D => { // Absolute
+                trace_log!(self, "EOR");
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                self.bitwise_xor(value);
+                self.wait_n_cycle(1);
+            },
+            0x5D => { // Absolute,x
+                trace_log!(self, "EOR");
+                let addr = self.get_next_u16().wrapping_add(self.x as u16);
+                let value = self.memory.read(addr);
+                self.bitwise_xor(value);
+                self.wait_n_cycle(1);
+            },
+            0x59 => { // Absolute,y
+                trace_log!(self, "EOR");
+                let addr = self.get_next_u16().wrapping_add(self.y as u16);
+                let value = self.memory.read(addr);
+                self.bitwise_xor(value);
+                self.wait_n_cycle(1);
+            },
+            0x41 => { // (Indirect,X)	
+                trace_log!(self, "EOR (ind,X)");
+                let ptr = self.get_next_byte();
+                let zp_ptr = ptr.wrapping_add(self.x); 
+
+                let lo = self.memory.read(zp_ptr as u16);
+                let hi = self
+                    .memory
+                    .read(zp_ptr.wrapping_add(1) as u16);
+                let addr = ((hi as u16) << 8) | lo as u16;
+
+                let value = self.memory.read(addr);
+                self.bitwise_xor(value);
+
+                self.wait_n_cycle(4);
+            }
             0xE5 => { // SBC - Subtract with Carry
                 trace_log!(self, "SBC");
                 let addr = self.get_next_byte() as u16;
@@ -401,7 +458,7 @@ impl CPU {
                 self.wait_n_cycle(1);
             },
             _ => {
-                trace_log!(self, "Unknown ALU instruction: {:#X}", opcode);
+                panic!("{:X} Unknown ALU instruction: {:#X}", self.pc, opcode);
             }
         }
 
@@ -458,8 +515,13 @@ impl CPU {
                 trace_log!(self, "NOP");
                 self.wait_n_cycle(1);
             },
+            0xAA => { // TAX - Transfer A to X
+                trace_log!(self, "TAX");
+                self.x = self.a;
+                self.p.set_zn(self.x);
+            }
             _ => {
-                debug_log!("Unknown RMW instruction: {:#X}", opcode);
+                panic!("Unknown RMW instruction: {:#X}", opcode);
             }
             
         }

@@ -21,4 +21,9 @@ impl CPU {
         }
     }
 
+    pub(crate) fn bitwise_xor(&mut self, value: u8) {
+        self.a ^= value;
+        self.p.set_zn(self.a);
+    }
+
 }
