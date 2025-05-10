@@ -330,6 +330,11 @@ impl CPU {
                 trace_log!(self, "TYA");
                 self.a = self.y;
                 self.p.set_zn(self.a);
+            },
+            0xA8 => { // TAY - Transfer A to Y
+                trace_log!(self, "TAY");
+                self.y = self.a;
+                self.p.set_zn(self.y);
             }
             _ => {
                 panic!("{:#X} Instruction step: Unknown instruction: {:#X}", self.pc, opcode);
