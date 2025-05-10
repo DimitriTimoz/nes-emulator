@@ -335,6 +335,11 @@ impl CPU {
                 trace_log!(self, "TAY");
                 self.y = self.a;
                 self.p.set_zn(self.y);
+            },
+            0x28 => { // PLP - Pull Processor Status
+                self.p.0 &= !0b11001111;
+                self.p.0 |= self.pull() & 0b11001111;
+                self.wait_n_cycle(3);
             }
             _ => {
                 panic!("{:#X} Instruction step: Unknown instruction: {:#X}", self.pc, opcode);
