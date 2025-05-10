@@ -307,6 +307,25 @@ impl CPU {
                 self.cmp(self.x,value);
                 self.wait_n_cycle(1);
             },
+            0xC0 => { // CPY - Compare Y #Immediate	
+                trace_log!(self, "CPY");
+                let value = self.get_next_byte();
+                self.cmp(self.y,value);
+            },
+            0xC4 => { // CPY - Compare Y Zero Page	
+                trace_log!(self, "CPY");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                self.cmp(self.y,value);
+                self.wait_n_cycle(1);
+            },
+            0xCC => { // CPY - Compare Y Absolute	
+                trace_log!(self, "CPY");
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                self.cmp(self.y,value);
+                self.wait_n_cycle(1);
+            },
             0x98 => { // TYA - Transfer Y to A
                 trace_log!(self, "TYA");
                 self.a = self.y;
