@@ -556,11 +556,6 @@ impl CPU {
                 self.p.set_zn(self.x);
                 self.wait_n_cycle(1);
             },
-            0x9A => { // TXS - Transfer X to Stack Pointer
-                trace_log!(self, "TXS");
-                self.s = self.x;
-                self.wait_n_cycle(1);
-            }
             0xCA => { // DEX - Decrement X
                 trace_log!(self, "DEX");
                 self.x = self.x.wrapping_sub(1);
@@ -598,16 +593,28 @@ impl CPU {
                 self.p.set_zn(self.x);
                 self.wait_n_cycle(1);
             },
-            0x8A => { // TAX - Transfer X to A
+            0xA8 => { // TAY - Transfer A to Y
+                trace_log!(self, "TAY");
+                self.y = self.a;
+                self.p.set_zn(self.y);
+                self.wait_n_cycle(1);
+            },
+            0x8A => { // TXA - Transfer X to A
                 trace_log!(self, "TXA");
                 self.a = self.x;
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(1);
             },
-            0xBA => { // TAX - Transfer S to X
+            0xBA => { // TSX - Transfer S to X
                 trace_log!(self, "TSX");
                 self.x = self.s;
                 self.p.set_zn(self.x);
+                self.wait_n_cycle(1);
+            },
+            0x9A => { // TXS - Transfer X to S
+                trace_log!(self, "TXS");
+                self.s= self.x;
+                self.p.set_zn(self.s);
                 self.wait_n_cycle(1);
             }
             _ => {
