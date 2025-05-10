@@ -275,7 +275,16 @@ impl CPU {
                 self.a = self.pull();
                 self.p.set_last_op_neg_zero(self.a);
                 self.wait_n_cycle(3);
-            }
+            },
+            0xC9 => { // CPX - Compare X
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                let result = self.x.wrapping_sub(value);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, self.x >= value);
+                self.wait_n_cycle(1);
+            },
             _ => {
                 panic!("Unknown instruction: {:#X}", opcode);
             }
