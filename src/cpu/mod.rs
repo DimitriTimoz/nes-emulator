@@ -306,6 +306,14 @@ impl CPU {
                 self.p.set_all(a, carry || carry2);
                 self.wait_n_cycle(1);
             },
+            0x69 => { // ADC - Add with Carry
+                let address = self.get_next_byte() as u16;
+                let value  = self.memory.read(address);
+                let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+            },
             0xC9 => { // CMP - Compare A
                 let value = self.get_next_byte();
                 let result = self.a.wrapping_sub(value);
