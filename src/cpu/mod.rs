@@ -23,9 +23,17 @@ impl StatusFlag {
         }
     }
 
-    fn set_last_op_neg_zero(&mut self, value: u8) {
+    fn test_zero(&mut self, value: u8) {
         self.set_state(StatusFlags::Zero, value == 0);
+    }
+
+    fn test_negative(&mut self, value: u8) {
         self.set_state(StatusFlags::Negative, (value & (1 << 7)) != 0)
+    }
+
+    fn set_last_op_neg_zero(&mut self, value: u8) {
+        self.test_zero(value);
+        self.test_negative(value);
     }
 
     fn set_all(&mut self, value: u8, carry: bool) {
@@ -225,6 +233,11 @@ impl CPU {
             0x18 => { // CLC - Clear Carry
                 self.p.clear(StatusFlags::Carry);
                 self.wait_n_cycle(1);
+            },
+            0x88 => { // DEY - Decrement Y
+                self.y = self.y.wrapping_sub(1);
+                self.p.set_last_op_neg_zero(self.y);
+                self.wait_n_cycle(1);
             }
             _ => {
                 panic!("Unknown instruction: {:#X}", opcode);
@@ -239,12 +252,21 @@ impl CPU {
                 self.a = self.get_next_byte();
                 self.p.set_last_op_neg_zero(self.a);
             },
-            0x8D | 0x85 => { // STA - Store A (Absolute	| Zero Page)
+            0xA5 => { // LDA - Load A #Zero Page	
+                let address = self.get_next_byte() as u16;
+                self.a = self.memory.read(address);
+                self.p.set_last_op_neg_zero(self.a);
+                self.wait_n_cycle(1);
+            },
+            0x8D => { // STA - Store A (Absolute)
                 let address = self.get_next_u16();
                 self.memory.write(address, self.a);
-                if opcode == 0x8D {
-                    self.wait_n_cycle(1);
-                }
+                self.wait_n_cycle(1);
+            },
+            0x85 => { // STA - Store A  (Zero Page)
+                let address = self.get_next_byte() as u16;
+                self.memory.write(address, self.a);
+                self.wait_n_cycle(1);
             },
             0x91 => { // STA - Store A #(Indirect),Y
                 let mut address  = self.get_next_byte() as u16;
@@ -270,6 +292,14 @@ impl CPU {
                 self.p.set_all(a, carry || carry2);
                 self.wait_n_cycle(1);
             },
+            0xC9 => { // CMP - Compare A
+                let value = self.get_next_byte();
+                let result = self.a.wrapping_sub(value);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, self.a >= value);
+                self.wait_n_cycle(1);
+            }
             _ => {
                 println!("Unknown ALU instruction: {:#X}", opcode);
             }
@@ -300,6 +330,16 @@ impl CPU {
                 self.memory.write(address, value);
                 self.p.set_last_op_neg_zero(value);
                 self.wait_n_cycle(3);
+            },
+            0x8E => { // STX - Store X #Absolute
+                let address = self.get_next_u16();
+                self.memory.write(address, self.x);
+                self.wait_n_cycle(1);
+            },
+            0x86 => { // STX - Store X #Zero Page
+                let address = self.get_next_byte() as u16;
+                self.memory.write(address, self.x);
+                self.wait_n_cycle(1);
             }
             _ => {
                 println!("Unknown RMW instruction: {:#X}", opcode);
