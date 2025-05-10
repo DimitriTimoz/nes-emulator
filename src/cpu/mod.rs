@@ -139,6 +139,20 @@ impl CPU {
                 self.y = self.get_next_byte();
                 self.p.set_last_op_neg_zero(self.y);
             },
+            0xD0 => { // BNE - Branch if Not Equal
+                let address = self.get_next_byte();
+                if !self.p.is_set(StatusFlags::Zero) {
+                    let value = self.memory.read(address as u16) as i8;
+                    let page = self.pc / 256;
+                    self.pc = ((self.pc as i32) + value as i32) as u16;
+                    let new_age = self.pc / 256;
+                    if new_age != page {
+                        self.wait_n_cycle(2);
+                    } else {
+                        self.wait_n_cycle(1);
+                    }
+                }
+            },
             _ => {
                 println!("Unknown instruction: {:#X}", opcode);
             }
