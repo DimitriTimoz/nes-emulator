@@ -54,13 +54,13 @@ impl StatusFlag {
         self.set_state(StatusFlags::Negative, (value & (1 << 7)) != 0)
     }
 
-    fn set_last_op_neg_zero(&mut self, value: u8) {
+    fn set_zn(&mut self, value: u8) {
         self.test_zero(value);
         self.test_negative(value);
     }
 
     fn set_all(&mut self, value: u8, carry: bool) {
-        self.set_last_op_neg_zero(value);
+        self.set_zn(value);
         self.set_overflow(value);
         self.set_state(StatusFlags::Carry, carry);
     }
@@ -202,7 +202,6 @@ impl CPU {
     }
 
     fn instruction_step(&mut self, opcode: u8) {
-        debug_log!("INSTRUCTION OPCODE: {:#X}", opcode);
         match opcode {
             0x78 => { // SEI
                 trace_log!(self, "SEI");
@@ -215,59 +214,22 @@ impl CPU {
             0xA0 => { // LDY - Load Y #Immediate
                 trace_log!(self, "LDY");
                 self.y = self.get_next_byte();
-                self.p.set_last_op_neg_zero(self.y);
+                self.p.set_zn(self.y);
             },
-            0xD0 => { // BNE - Branch if Not Equal
-                trace_log!(self, "BNE");
-                let addr = self.get_next_byte();
-                if !self.p.is_set(StatusFlags::Zero) {
-                    let value = self.memory.read(addr as u16) as i8;
-                    let page = self.pc / 256;
-                    self.pc = ((self.pc as i32) + value as i32) as u16;
-                    let new_age = self.pc / 256;
-                    if new_age != page {
-                        self.wait_n_cycle(2);
-                    } else {
-                        self.wait_n_cycle(1);
-                    }
-                }
-            },
-            0x10 => { // BPL - Branch if Plus
-                trace_log!(self, "BPL");
-                let addr = self.get_next_byte();
-                if !self.p.is_set(StatusFlags::Negative) {
-                    let value = self.memory.read(addr as u16) as i8;
-                    let page = self.pc / 256;
-                    self.pc = ((self.pc as i32) + value as i32) as u16;
-                    let new_age = self.pc / 256;
-                    if new_age != page {
-                        self.wait_n_cycle(2);
-                    } else {
-                        self.wait_n_cycle(1);
-                    }
-                }
-            },
-            0x90 => { // BCC - Branch if Carry Clear
-                trace_log!(self, "BCC");
-                let addr = self.get_next_byte();
-                if !self.p.is_set(StatusFlags::Carry) {
-                    let value = self.memory.read(addr as u16) as i8;
-                    let page = self.pc / 256;
-                    self.pc = ((self.pc as i32) + value as i32) as u16;
-                    let new_age = self.pc / 256;
-                    if new_age != page {
-                        self.wait_n_cycle(2);
-                    } else {
-                        self.wait_n_cycle(1);
-                    }
-                }
-            },
+            0xD0 => { trace_log!(self,"BNE"); self.branch(!self.p.is_set(StatusFlags::Zero)); }
+            0xF0 => { trace_log!(self,"BEQ"); self.branch( self.p.is_set(StatusFlags::Zero)); }
+            0x10 => { trace_log!(self,"BPL"); self.branch(!self.p.is_set(StatusFlags::Negative)); }
+            0x30 => { trace_log!(self,"BMI"); self.branch( self.p.is_set(StatusFlags::Negative)); }
+            0x90 => { trace_log!(self,"BCC"); self.branch(!self.p.is_set(StatusFlags::Carry)); }
+            0xB0 => { trace_log!(self,"BCS"); self.branch( self.p.is_set(StatusFlags::Carry)); }
+            0x50 => { trace_log!(self,"BVC"); self.branch(!self.p.is_set(StatusFlags::Overflow)); }
+            0x70 => { trace_log!(self,"BVS"); self.branch( self.p.is_set(StatusFlags::Overflow)); }
             0x2C => { // BIT - Bit Test (Absolute)
                 trace_log!(self, "BIT");
                 let addr = self.get_next_u16();
                 let value = self.memory.read(addr);
                 let result = value | self.a;
-                self.p.set_last_op_neg_zero(result);
+                self.p.set_zn(result);
                 self.p.set_overflow(result);
                 self.wait_n_cycle(1);
             },
@@ -312,7 +274,7 @@ impl CPU {
             0x88 => { // DEY - Decrement Y
                 trace_log!(self, "DEY");
                 self.y = self.y.wrapping_sub(1);
-                self.p.set_last_op_neg_zero(self.y);
+                self.p.set_zn(self.y);
                 self.wait_n_cycle(1);
             },
             0x48 => { // PHA - Push A
@@ -323,7 +285,7 @@ impl CPU {
             0x68 => { // PLA - Pull A
                 trace_log!(self, "PLA");
                 self.a = self.pull();
-                self.p.set_last_op_neg_zero(self.a);
+                self.p.set_zn(self.a);
                 self.wait_n_cycle(3);
             },
             0xE0 => { // CPX - Compare X #Immediate	
@@ -346,7 +308,7 @@ impl CPU {
                 self.wait_n_cycle(1);
             }
             _ => {
-                panic!("{:#X} Unknown instruction: {:#X}", self.pc, opcode);
+                panic!("{:#X} Instruction step: Unknown instruction: {:#X}", self.pc, opcode);
             }
         } 
     }
@@ -357,13 +319,20 @@ impl CPU {
             0xA9 => { // LDA - Load A #Immediate
                 trace_log!(self, "LDA");
                 self.a = self.get_next_byte();
-                self.p.set_last_op_neg_zero(self.a);
+                self.p.set_zn(self.a);
             },
             0xA5 => { // LDA - Load A #Zero Page	
                 trace_log!(self, "LDA");
                 let addr = self.get_next_byte() as u16;
                 self.a = self.memory.read(addr);
-                self.p.set_last_op_neg_zero(self.a);
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0xAD => { // LDA - Load A #Zero Page	
+                trace_log!(self, "LDA");
+                let addr = self.get_next_u16();
+                self.a = self.memory.read(addr);
+                self.p.set_zn(self.a);
                 self.wait_n_cycle(1);
             },
             0x8D => { // STA - Store A (Absolute)
@@ -398,7 +367,7 @@ impl CPU {
                 let effective_addr = self.memory.read(zp_addr as u16);
                 let value = self.memory.read(effective_addr as u16);
                 self.a |= value;
-                self.p.set_last_op_neg_zero(self.a);
+                self.p.set_zn(self.a);
                 self.wait_n_cycle(4);
             },
             0xE5 => { // SBC - Subtract with Carry
@@ -439,13 +408,13 @@ impl CPU {
             0xA2 => { // LDX #Immediate	
                 trace_log!(self, "LDX");
                 self.x = self.get_next_byte();
-                self.p.set_last_op_neg_zero(self.x);
+                self.p.set_zn(self.x);
             },
             0xA6 => { // LDX - Load X # Zero Page	
                 trace_log!(self, "LDX");
                 let addr = self.get_next_byte() as u16;
                 self.x = self.memory.read(addr);
-                self.p.set_last_op_neg_zero(self.x);
+                self.p.set_zn(self.x);
                 self.wait_n_cycle(1);
             },
             0x9A => { // TXS - Transfer X to Stack Pointer
@@ -455,8 +424,8 @@ impl CPU {
             }
             0xCA => { // DEX - Decrement X
                 trace_log!(self, "DEX");
-                self.x -= 1;
-                self.p.set_last_op_neg_zero(self.x);
+                self.x = self.x.wrapping_sub(1);
+                self.p.set_zn(self.x);
                 self.wait_n_cycle(1);
             },
             0xE6 => { // INC - Increment Memory
@@ -465,7 +434,7 @@ impl CPU {
                 let mut value = self.memory.read(addr);
                 value = value.wrapping_add(1);
                 self.memory.write(addr, value);
-                self.p.set_last_op_neg_zero(value);
+                self.p.set_zn(value);
                 self.wait_n_cycle(3);
             },
             0x8E => { // STX - Store X #Absolute    
@@ -479,7 +448,11 @@ impl CPU {
                 let addr = self.get_next_byte() as u16;
                 self.memory.write(addr, self.x);
                 self.wait_n_cycle(1);
-            }
+            },
+            0xEA => { // NOP - No Operation
+                trace_log!(self, "NOP");
+                self.wait_n_cycle(1);
+            },
             _ => {
                 debug_log!("Unknown RMW instruction: {:#X}", opcode);
             }

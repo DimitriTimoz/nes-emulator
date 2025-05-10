@@ -7,4 +7,18 @@ impl CPU {
         self.p.test_zero(result);
         self.p.set_state(StatusFlags::Carry, a >= b);
     }
+
+    pub(crate) fn branch(&mut self, cond: bool) {
+        let offset = self.get_next_byte() as i8;   // <- signé
+        if cond {
+            let old_pc = self.pc;                  // PC pointe déjà après l’opérande
+            self.pc = self.pc.wrapping_add(offset as i16 as u16);
+
+            self.wait_n_cycle(1);                  // +1 cycle si branche prise
+            if (old_pc & 0xFF00) != (self.pc & 0xFF00) {
+                self.wait_n_cycle(1);              // +1 cycle si changement de page
+            }
+        }
+    }
+
 }
