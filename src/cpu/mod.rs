@@ -262,6 +262,10 @@ impl CPU {
                 self.y = self.y.wrapping_sub(1);
                 self.p.set_last_op_neg_zero(self.y);
                 self.wait_n_cycle(1);
+            },
+            0x48 => { // PHA - Push A
+                self.push(self.a);
+                self.wait_n_cycle(2);
             }
             _ => {
                 panic!("Unknown instruction: {:#X}", opcode);
