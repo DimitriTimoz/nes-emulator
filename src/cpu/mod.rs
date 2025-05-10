@@ -306,6 +306,11 @@ impl CPU {
                 let value = self.memory.read(addr);
                 self.cmp(self.x,value);
                 self.wait_n_cycle(1);
+            },
+            0x98 => { // TYA - Transfer Y to A
+                trace_log!(self, "TYA");
+                self.a = self.y;
+                self.p.set_zn(self.a);
             }
             _ => {
                 panic!("{:#X} Instruction step: Unknown instruction: {:#X}", self.pc, opcode);
