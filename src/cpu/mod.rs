@@ -215,6 +215,10 @@ impl CPU {
                 let pc = self.pop_u16();
                 self.pc = pc + 1 ;
                 self.wait_n_cycle(5);
+            },
+            0x18 => { // CLC - Clear Carry
+                self.p.clear(StatusFlags::Carry);
+                self.wait_n_cycle(1);
             }
             _ => {
                 println!("Unknown instruction: {:#X}", opcode);
@@ -273,6 +277,14 @@ impl CPU {
                 self.x -= 1;
                 self.p.set_last_op_neg_zero(self.x);
                 self.wait_n_cycle(1);
+            },
+            0xE6 => { // INC - Increment Memory
+                let address = self.get_next_byte() as u16;
+                let mut value = self.memory.read(address);
+                value += 1;
+                self.memory.write(address, value);
+                self.p.set_last_op_neg_zero(value);
+                self.wait_n_cycle(3);
             }
             _ => {
                 println!("Unknown RMW instruction: {:#X}", opcode);
