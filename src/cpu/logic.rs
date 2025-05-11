@@ -39,11 +39,11 @@ impl Cpu {
     #[inline]
     pub(crate) fn zp_y(&mut self, base: u8) -> u16 { base.wrapping_add(self.y) as u16 }
     #[inline]
-    pub (crate) fn zpa_x(&self, base: u16) -> u16 {
+    pub (crate) fn pa_x(&self, base: u16) -> u16 {
         base.wrapping_add(self.x as u16)
     }
     #[inline]
-    pub (crate) fn zpa_y(&self, zp: u8) -> u16 {
+    pub (crate) fn a_y(&self, zp: u8) -> u16 {
         zp.wrapping_add(self.y) as u16
     }
 
