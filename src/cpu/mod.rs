@@ -235,10 +235,43 @@ impl Cpu {
                 self.p.clear(StatusFlags::Overflow);
                 self.wait_n_cycle(1);
             },
-            0xA0 => { // LDY - Load Y #Immediate
+            0xA0 => { // LDY #Immediate	
                 trace_log!(self, "LDY");
                 self.y = self.get_next_byte();
                 self.p.set_zn(self.y);
+            },
+            0xA4 => { // LDY - Load X # Zero Page	
+                trace_log!(self, "LDY");
+                let addr = self.get_next_byte() as u16;
+                self.y = self.memory.read(addr);
+                self.p.set_zn(self.y);
+                self.wait_n_cycle(1);
+            },
+            0xB4 => { // LDY - Load Y #Zero Page,x	
+                trace_log!(self, "LDY zp,X");
+                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16) & 0xFF;
+                self.y = self.memory.read(addr);
+                self.p.set_zn(self.y);
+                self.wait_n_cycle(1);
+            },
+            0xAC => { // LDY - Load Y #Absolute
+                trace_log!(self, "LDY");
+                let addr = self.get_next_u16();
+                self.y = self.memory.read(addr);
+                self.p.set_zn(self.y);
+                self.wait_n_cycle(1);
+            },
+            0xBC => { // LDY - Load Y #Absolute,X
+                trace_log!(self, "LDY");
+                let base_addr = self.get_next_u16();
+                let addr= base_addr.wrapping_add(self.x as u16);
+                self.y = self.memory.read(addr);
+                self.p.set_zn(self.y);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
             },
             0xD0 => { trace_log!(self,"BNE"); self.branch(!self.p.is_set(StatusFlags::Zero)); }
             0xF0 => { trace_log!(self,"BEQ"); self.branch( self.p.is_set(StatusFlags::Zero)); }
@@ -676,8 +709,8 @@ impl Cpu {
                 self.wait_n_cycle(1);
             },
             0xB6 => { // LDX - Load X #Zero Page,Y	
-                trace_log!(self, "LDX");
-                let addr = (self.get_next_byte() as u16).wrapping_add(self.y as u16);
+                trace_log!(self, "LDX zp,Y");
+                let addr = (self.get_next_byte() as u16).wrapping_add(self.y as u16) & 0xFF;
                 self.x = self.memory.read(addr);
                 self.p.set_zn(self.x);
                 self.wait_n_cycle(1);
@@ -727,6 +760,13 @@ impl Cpu {
                 let addr = self.get_next_byte() as u16;
                 self.memory.write(addr, self.x);
                 self.wait_n_cycle(1);
+            },
+            0x96 => { // STX - Store X #Zero Page,Y
+                trace_log!(self, "STX zp,y");
+                let base = self.get_next_byte();        
+                let addr = (base.wrapping_add(self.y)) as u16;
+                self.memory.write(addr, self.x);
+                self.wait_n_cycle(2);
             },
             0xEA => { // NOP - No Operation
                 trace_log!(self, "NOP");

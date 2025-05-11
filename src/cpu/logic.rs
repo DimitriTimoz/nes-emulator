@@ -15,8 +15,8 @@ impl Cpu {
         if cond {
             let old_pc = self.pc;       
             self.pc = self.pc.wrapping_add(offset as i16 as u16);
-            if self.pc == 0x0944 {
-                panic!("Branch to 0x0944");
+            if self.pc + 2 == old_pc {
+                panic!("Branch loop");
             }
             self.wait_n_cycle(1);
             if (old_pc & 0xFF00) != (self.pc & 0xFF00) {
