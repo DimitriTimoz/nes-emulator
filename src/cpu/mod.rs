@@ -376,6 +376,15 @@ impl Cpu {
                 self.p.set(StatusFlags::InterruptDisable);
                 self.p.set(StatusFlags::BFlag);
                 self.wait_n_cycle(6);
+            },
+            0x40 => { // RTI - Return from Interrupt
+                trace_log!(self, "RTI");
+                let flags = self.pull();
+                self.p.0 &= !0b11001111;
+                self.p.0 |= flags & 0b11001111;
+                let pc = self.pull_u16();
+                self.pc = pc;
+                self.wait_n_cycle(5);
             }
             _ => {
                 panic!("{:#X} Instruction step: Unknown instruction: {:#X}", self.pc, opcode);
