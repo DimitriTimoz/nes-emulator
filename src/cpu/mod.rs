@@ -664,7 +664,20 @@ impl Cpu {
                 self.bitwise_xor(value);
 
                 self.wait_n_cycle(4);
-            }
+            },
+            0x51 => { // (Indirect),Y	
+                trace_log!(self,"EOR (ind),Y");
+                let ptr = self.get_next_byte();
+                let addr = self.memory.read_u16(ptr as u16);
+                let addr = self.a_y(addr);
+                let value = self.memory.read(addr);
+                self.bitwise_xor(value);
+                if (addr & 0xFF00) != ((addr.wrapping_add(self.y as u16)) & 0xFF00) {
+                    self.wait_n_cycle(4);
+                } else {
+                    self.wait_n_cycle(3);
+                }
+            },
             0xE5 => { // SBC - Subtract with Carry
                 trace_log!(self, "SBC");
                 let addr = self.get_next_byte() as u16;
@@ -927,7 +940,7 @@ impl Cpu {
             0xFE => { // INC - Increment Memory
                 trace_log!(self, "INC");
                 let addr = self.get_next_u16();
-                let addr = self.pa_x(addr);
+                let addr = self.a_x(addr);
                 let mut value = self.memory.read(addr);
                 value = value.wrapping_add(1);
                 self.memory.write(addr, value);
@@ -1010,7 +1023,7 @@ impl Cpu {
             0x1E => { // ASL - Arithmetic Shift Left
                 trace_log!(self, "ASL abs,x");
                 let addr = self.get_next_u16();
-                let addr = self.pa_x(addr);
+                let addr = self.a_x(addr);
                 self.rmw_modify(addr, Cpu::asl);  
             },
             0x2A => { // ROL - Rotate Left
@@ -1042,7 +1055,7 @@ impl Cpu {
             0x5E => { // LSR - Logical Shift Right
                 trace_log!(self, "LSR abs,x");
                 let addr = self.get_next_u16();
-                let addr = self.pa_x(addr);
+                let addr = self.a_x(addr);
                 self.rmw_modify(addr, Cpu::lsr);  
             },
             0x6A => { // ROR - Rotate Right
@@ -1069,7 +1082,7 @@ impl Cpu {
             0x3E => { // ROL - Rotate Left
                 trace_log!(self, "ROL abs,x");
                 let addr = self.get_next_u16();
-                let addr = self.pa_x(addr);
+                let addr = self.a_x(addr);
                 self.rmw_modify(addr, Cpu::rol);  
             },
             0x66 => { // ROR - Rotate Right
@@ -1091,7 +1104,7 @@ impl Cpu {
             0x7E => { // ROR - Rotate Right
                 trace_log!(self, "ROR abs,x");
                 let addr = self.get_next_u16();
-                let addr = self.pa_x(addr);
+                let addr = self.a_x(addr);
                 self.rmw_modify(addr, Cpu::ror);  
             },
             0xC6 => { // DEC - Decrement Memory
@@ -1125,7 +1138,7 @@ impl Cpu {
             0xDE => { // DEC - Decrement Memory
                 trace_log!(self, "DEC abs,x");
                 let addr = self.get_next_u16();
-                let addr = self.pa_x(addr);
+                let addr = self.a_x(addr);
                 let mut value = self.memory.read(addr);
                 value = value.wrapping_sub(1);
                 self.memory.write(addr, value);
