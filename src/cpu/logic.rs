@@ -102,27 +102,45 @@ impl Cpu {
         res
     }
 
-    #[inline]
-    pub(crate) fn adc(&mut self, v: u8) {
-        let a      = self.a;
-        let carry  = self.p.is_set(StatusFlags::Carry) as u8;
-        let (sum1, c1) = a.overflowing_add(v);
-        let (res , c2) = sum1.overflowing_add(carry);
+    pub(crate) fn adc(&mut self, rhs: u8) {
+        let a        = self.a;
+        let carry_in = self.p.is_set(StatusFlags::Carry) as u8;
 
-        // flags
+        let (t, c1)  = a.overflowing_add(rhs);
+        let (r, c2)  = t.overflowing_add(carry_in);
+
+        /* C, Z, N */
         self.p.set_state(StatusFlags::Carry, c1 || c2);
-        // overflow = (~(a ^ v) & (a ^ res)) bit 7
-        let ovf = (!(a ^ v) & (a ^ res) & 0x80) != 0;
-        self.p.set_state(StatusFlags::Overflow, ovf);
-        self.p.set_zn(res);
+        self.p.set_zn(r);
 
-        self.a = res;
+        /* V  (addition rule) */
+        let ovf = ((a ^ r) & (rhs ^ r) & 0x80) != 0;
+        self.p.set_state(StatusFlags::Overflow, ovf);
+
+        self.a = r;
     }
 
-    #[inline]
-    pub(crate) fn sbc(&mut self, value: u8) {
-        // SBC = A + (~value) + C
-        self.adc(!value);
+    /* ----------  Subtract with Carry (fixed) ---------- */
+    pub(crate) fn sbc(&mut self, m: u8) {
+        let a        = self.a;
+        let carry_in = self.p.is_set(StatusFlags::Carry) as u8;
+
+        // A + (¬M) + C
+        let inv      = m ^ 0xFF;
+        let (t, c1)  = a.overflowing_add(inv);
+        let (r, c2)  = t.overflowing_add(carry_in);
+
+        /* C  (set if NO borrow) */
+        self.p.set_state(StatusFlags::Carry, c1 || c2);
+
+        /* Z, N */
+        self.p.set_zn(r);
+
+        /* V  (subtraction rule) */
+        let ovf = ((a ^ r) & (a ^ m) & 0x80) != 0;
+        self.p.set_state(StatusFlags::Overflow, ovf);
+
+        self.a = r;
     }
 
     #[inline]

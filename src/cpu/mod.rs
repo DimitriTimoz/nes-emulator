@@ -68,13 +68,6 @@ impl StatusFlag {
         self.test_zero(value);
         self.test_negative(value);
     }
-
-    fn set_all(&mut self, value: u8, carry: bool) {
-        self.set_zn(value);
-        self.set_overflow(value);
-        self.set_state(StatusFlags::Carry, carry);
-    }
-
     fn set_overflow(&mut self, value: u8) {
         self.set_state(StatusFlags::Overflow, (value & (1 << 6)) != 0);
     }
