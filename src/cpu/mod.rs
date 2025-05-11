@@ -934,6 +934,198 @@ impl Cpu {
                     self.wait_n_cycle(3);
                 }
             },
+            0x4A => { // LSR - Logical Shift Right
+                trace_log!(self, "LSR a");
+                let old = self.a;
+                self.p.set_state(StatusFlags::Carry, old & 0x01 != 0);
+                self.a = old >> 1;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0x46 => { // LSR - Logical Shift Right (Zero Page)
+                trace_log!(self, "LSR zp");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                let (result, carry) = value.overflowing_shr(1);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(3);
+            },
+            0x56 => { // LSR - Logical Shift Right (Zero Page,X)
+                trace_log!(self, "LSR zp,x");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                let value = self.memory.read(addr);
+                let (result, carry) = value.overflowing_shr(1);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(4);
+            },
+            0x4E => { // LSR - Logical Shift Right (Absolute)
+                trace_log!(self, "LSR");
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                let (result, carry) = value.overflowing_shr(1);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(3);
+            },
+            0x5E => { // LSR - Logical Shift Right (Absolute,X)
+                trace_log!(self, "LSR");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.x as u16);
+                let value = self.memory.read(addr);
+                let (result, carry) = value.overflowing_shr(1);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, carry);
+                self.memory.write(addr, result);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(4);
+                } else {
+                    self.wait_n_cycle(3);
+                }
+            },
+            0x2A => { // ROL - Rotate Left
+                trace_log!(self, "ROL a");
+                let old = self.a;
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                self.p.set_state(StatusFlags::Carry, old & 0x80 != 0);
+                self.a = (old << 1) | carry;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0x26 => { // ROL - Rotate Left (Zero Page)
+                trace_log!(self, "ROL zp");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                let (result, n_carry) = value.overflowing_shl(1);
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                let result = result | carry;
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, n_carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(3);
+            },
+            0x36 => { // ROL - Rotate Left (Zero Page,X)
+                trace_log!(self, "ROL zp,x");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                let value = self.memory.read(addr);
+                let (result, n_carry) = value.overflowing_shl(1);
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                let result = result | carry;
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, n_carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(4);
+            },
+            0x2E => { // ROL - Rotate Left (Absolute)
+                trace_log!(self, "ROL");
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                let (result, n_carry) = value.overflowing_shl(1);
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                let result = result | carry;
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, n_carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(3);
+            },
+            0x3E => { // ROL - Rotate Left (Absolute,X)
+                trace_log!(self, "ROL");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.x as u16);
+                let value = self.memory.read(addr);
+                let (result, n_carry) = value.overflowing_shl(1);
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                let result = result | carry;
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, n_carry);
+                self.memory.write(addr, result);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(4);
+                } else {
+                    self.wait_n_cycle(3);
+                }
+            },
+            0x6A => { // ROR - Rotate Right
+                trace_log!(self, "ROR a");
+                let old = self.a;
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                self.p.set_state(StatusFlags::Carry, old & 0x01 != 0);
+                self.a = (old >> 1) | (carry << 7);
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0x66 => { // ROR - Rotate Right (Zero Page)
+                trace_log!(self, "ROR zp");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                let (result, n_carry) = value.overflowing_shr(1);
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                let result = result | (carry << 7);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, n_carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(3);
+            },
+            0x76 => { // ROR - Rotate Right (Zero Page,X)
+                trace_log!(self, "ROR zp,x");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                let value = self.memory.read(addr);
+                let (result, n_carry) = value.overflowing_shr(1);
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                let result = result | (carry << 7);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, n_carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(4);
+            },
+            0x6E => { // ROR - Rotate Right (Absolute)
+                trace_log!(self, "ROR");
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                let (result, n_carry) = value.overflowing_shr(1);
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                let result = result | (carry << 7);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, n_carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(3);
+            },
+            0x7E => { // ROR - Rotate Right (Absolute,X)
+                trace_log!(self, "ROR");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.x as u16);
+                let value = self.memory.read(addr);
+                let (result, n_carry) = value.overflowing_shr(1);
+                let carry = self.p.is_set(StatusFlags::Carry) as u8;
+                let result = result | (carry << 7);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, n_carry);
+                self.memory.write(addr, result);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(4);
+                } else {
+                    self.wait_n_cycle(3);
+                }
+            },
             _ => {
                 panic!("Unknown RMW instruction: {:#X}", opcode);
             }
