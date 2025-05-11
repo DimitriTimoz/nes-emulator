@@ -29,5 +29,4 @@ impl Cpu {
         self.a ^= value;
         self.p.set_zn(self.a);
     }
-
 }

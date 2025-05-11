@@ -387,7 +387,8 @@ impl Cpu {
         match opcode {
             0xA9 => { // LDA - Load A #Immediate
                 trace_log!(self, "LDA");
-                self.a = self.get_next_byte();
+                let value = self.get_next_byte();
+                self.a = value;
                 self.p.set_zn(self.a);
             },
             0xA5 => { // LDA - Load A #Zero Page	
@@ -397,9 +398,55 @@ impl Cpu {
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(1);
             },
-            0xAD => { // LDA - Load A #Zero Page	
+            0xB5 => { // LDA - Load A #Zero Page,X	
+                trace_log!(self, "LDA");
+                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16);
+                self.a = self.memory.read(addr);
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0xAD => { // LDA - Load A #Absolute
                 trace_log!(self, "LDA");
                 let addr = self.get_next_u16();
+                self.a = self.memory.read(addr);
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0xBD => { // LDA - Load A (Absolute,X)
+                trace_log!(self, "LDA");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.x as u16);
+                if (addr & 0xFF00) != (base_addr & 0xFF00) {
+                    self.wait_n_cycle(1);
+                }
+                self.a = self.memory.read(addr);
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0xB9 => { // LDA - Load A (Absolute,Y)
+                trace_log!(self, "LDA");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.y as u16);
+                if (addr & 0xFF00) != (base_addr & 0xFF00) {
+                    self.wait_n_cycle(1);
+                }
+                self.a = self.memory.read(addr);
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0xA1 => { // LDA - Load A (Indirect,X)	
+                trace_log!(self, "LDA");
+                let ptr = self.get_next_u16().wrapping_add(self.x as u16);
+                let addr = self.memory.read(ptr) as u16;
+                self.a = self.memory.read(addr);
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0xB1 => { // LDA - Load A (Indirect),Y
+                trace_log!(self, "LDA");
+                let ptr = self.get_next_u16();
+                let base_addr = self.memory.read(ptr) as u16;
+                let addr = base_addr.wrapping_add(self.y as u16);
                 self.a = self.memory.read(addr);
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(1);
