@@ -512,21 +512,21 @@ impl Cpu {
                 self.wait_n_cycle(1);
             },
             0xA1 => { // LDA - Load A (Indirect,X)	
-                trace_log!(self, "LDA");
-                let ptr = self.get_next_u16().wrapping_add(self.x as u16);
-                let addr = self.memory.read(ptr) as u16;
+                trace_log!(self, "LDA (ind,X)");
+                let zp = self.get_next_byte();
+                let addr = self.zp_ptr_x(zp, self.x);
                 self.a = self.memory.read(addr);
                 self.p.set_zn(self.a);
-                self.wait_n_cycle(1);
+                self.wait_n_cycle(4);              
             },
-            0xB1 => { // LDA - Load A (Indirect),Y
-                trace_log!(self, "LDA");
-                let ptr = self.get_next_u16();
-                let base_addr = self.memory.read(ptr) as u16;
-                let addr = base_addr.wrapping_add(self.y as u16);
+            0xB1 => {
+                trace_log!(self, "LDA (ind),Y");
+                let zp = self.get_next_byte();
+                let base = self.zp_ptr(zp);
+                let addr = base.wrapping_add(self.y as u16);
                 self.a = self.memory.read(addr);
                 self.p.set_zn(self.a);
-                self.wait_n_cycle(1);
+                if (base & 0xFF00) != (addr & 0xFF00) { self.wait_n_cycle(2) } else { self.wait_n_cycle(1) }
             },
             0x8D => { // STA - Store A (Absolute)
                 trace_log!(self, "STA");
@@ -546,10 +546,11 @@ impl Cpu {
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(1);
             },
-            0x91 => { // STA - Store A #(Indirect),Y
-                trace_log!(self, "STA");
-                let mut addr  = self.get_next_byte() as u16;
-                addr = addr.wrapping_add(self.y as u16);
+            0x91 => {
+                trace_log!(self, "STA (ind),Y");
+                let zp = self.get_next_byte();
+                let base = self.zp_ptr(zp);
+                let addr = base.wrapping_add(self.y as u16);
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(4);
             },
