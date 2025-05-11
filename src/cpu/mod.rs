@@ -824,6 +824,35 @@ impl Cpu {
                 self.p.set_zn(value);
                 self.wait_n_cycle(3);
             },
+            0xF6 => { // INC - Increment Memory
+                trace_log!(self, "INC");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                let mut value = self.memory.read(addr);
+                value = value.wrapping_add(1);
+                self.memory.write(addr, value);
+                self.p.set_zn(value);
+                self.wait_n_cycle(4);
+            },
+            0xEE => { // INC - Increment Memory
+                trace_log!(self, "INC");
+                let addr = self.get_next_u16();
+                let mut value = self.memory.read(addr);
+                value = value.wrapping_add(1);
+                self.memory.write(addr, value);
+                self.p.set_zn(value);
+                self.wait_n_cycle(3);
+            },
+            0xFE => { // INC - Increment Memory
+                trace_log!(self, "INC");
+                let addr = self.get_next_u16();
+                let addr = self.zpa_x(addr);
+                let mut value = self.memory.read(addr);
+                value = value.wrapping_add(1);
+                self.memory.write(addr, value);
+                self.p.set_zn(value);
+                self.wait_n_cycle(4);
+            },
             0x8E => { // STX - Store X #Absolute    
                 trace_log!(self, "STX");
                 let addr = self.get_next_u16();
