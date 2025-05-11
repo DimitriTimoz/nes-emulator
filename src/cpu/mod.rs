@@ -273,6 +273,25 @@ impl Cpu {
                     self.wait_n_cycle(1);
                 }
             },
+            0x8C => { // STY - Store Y #Absolute    
+                trace_log!(self, "STY");
+                let addr = self.get_next_u16();
+                self.memory.write(addr, self.y);
+                self.wait_n_cycle(1);
+            },
+            0x84 => { // STY - Store Y #Zero Page
+                trace_log!(self, "STY");
+                let addr = self.get_next_byte() as u16;
+                self.memory.write(addr, self.y);
+                self.wait_n_cycle(1);
+            },
+            0x94 => { // STY - Store Y #Zero Page,X
+                trace_log!(self, "STY zp,x");
+                let base = self.get_next_byte();        
+                let addr = (base.wrapping_add(self.x)) as u16;
+                self.memory.write(addr, self.y);
+                self.wait_n_cycle(2);
+            },
             0xD0 => { trace_log!(self,"BNE"); self.branch(!self.p.is_set(StatusFlags::Zero)); }
             0xF0 => { trace_log!(self,"BEQ"); self.branch( self.p.is_set(StatusFlags::Zero)); }
             0x10 => { trace_log!(self,"BPL"); self.branch(!self.p.is_set(StatusFlags::Negative)); }
