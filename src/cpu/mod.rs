@@ -743,8 +743,16 @@ impl Cpu {
                     self.wait_n_cycle(3);
                 }
             },
-            0xE5 => { // SBC - Subtract with Carry
+            0xE9 => { // SBC - Subtract with Carry
                 trace_log!(self, "SBC");
+                let value = self.get_next_byte();
+                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+            },
+            0xE5 => { // SBC - Subtract with Carry
+                trace_log!(self, "SBC zp");
                 let addr = self.get_next_byte() as u16;
                 let value  = self.memory.read(addr);
                 let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
@@ -752,6 +760,84 @@ impl Cpu {
                 self.a = a;
                 self.p.set_all(a, carry || carry2);
                 self.wait_n_cycle(1);
+            },
+            0xF5 => { // SBC - Subtract with Carry
+                trace_log!(self, "SBC zp,X");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                let value  = self.memory.read(addr);
+                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                self.wait_n_cycle(2);
+            },
+            0xED => { // SBC - Subtract with Carry
+                trace_log!(self, "SBC abs");
+                let addr = self.get_next_u16();
+                let value  = self.memory.read(addr);
+                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                self.wait_n_cycle(1);
+            },
+            0xFD => { // SBC - Subtract with Carry
+                trace_log!(self, "SBC abs,X");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.x as u16);
+                let value  = self.memory.read(addr);
+                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0xF9 => { // SBC - Subtract with Carry
+                trace_log!(self, "SBC abs,Y");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.y as u16);
+                let value  = self.memory.read(addr);
+                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0xE1 => { // SBC - Subtract with Carry
+                trace_log!(self, "SBC (ind,X)");
+                let zp   = self.get_next_byte();
+                let addr = self.zp_ptr_x(zp, self.x);
+                let value  = self.memory.read(addr);
+                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                self.wait_n_cycle(4);
+            },
+            0xF1 => { // SBC - Subtract with Carry
+                trace_log!(self, "SBC (ind),Y");
+                let zp = self.get_next_byte();
+                let base = self.zp_ptr(zp);
+                let addr = base.wrapping_add(self.y as u16);
+                let value  = self.memory.read(addr);
+                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                if (base & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(4);
+                } else {
+                    self.wait_n_cycle(3);
+                }
             },
             0x69 => { // ADC - Add with Carry
                 trace_log!(self, "ADC");
