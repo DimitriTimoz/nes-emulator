@@ -761,6 +761,94 @@ impl Cpu {
                 self.a = a;
                 self.p.set_all(a, carry || carry2);
             },
+            0x65 => { // ADC - Add with Carry Zero Page
+                trace_log!(self, "ADC (zp)");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                self.wait_n_cycle(1);
+            },
+            0x75 => { // ADC - Add with Carry Zero Page,X
+                trace_log!(self, "ADC (zp,X)");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                let value = self.memory.read(addr);
+                let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                self.wait_n_cycle(2);
+            },
+            0x6D => { // ADC - Add with Carry Absolute
+                trace_log!(self, "ADC (abs)");
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                self.wait_n_cycle(1);
+            },
+            0x7D => { // ADC - Add with Carry Absolute,X
+                trace_log!(self, "ADC (abs,X)");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.x as u16);
+                let value = self.memory.read(addr);
+                let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0x79 => { // ADC - Add with Carry Absolute,Y
+                trace_log!(self, "ADC (abs,Y)");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.y as u16);
+                let value = self.memory.read(addr);
+                let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0x61 => { // ADC - Add with Carry (Indirect,X)
+                trace_log!(self, "ADC (ind,X)");
+                let zp   = self.get_next_byte();
+                let addr = self.zp_ptr_x(zp, self.x);
+                let value = self.memory.read(addr);
+                let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                self.wait_n_cycle(4);
+            },
+            0x71 => { // ADC - Add with Carry (Indirect),Y
+                trace_log!(self, "ADC (ind),Y");
+                let zp = self.get_next_byte();
+                let base = self.zp_ptr(zp);
+                let addr = base.wrapping_add(self.y as u16);
+                let value = self.memory.read(addr);
+                let (value, carry) = value.overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
+                let (a, carry2)  = self.a.overflowing_add(value);
+                self.a = a;
+                self.p.set_all(a, carry || carry2);
+                if (base & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(4);
+                } else {
+                    self.wait_n_cycle(3);
+                }
+            },
             0xC9 => { // CMP - Compare A
                 trace_log!(self, "CMP");
                 let value = self.get_next_byte();
