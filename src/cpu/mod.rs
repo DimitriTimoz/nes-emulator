@@ -535,8 +535,14 @@ impl Cpu {
                 self.wait_n_cycle(1);
             },
             0x85 => { // STA - Store A  (Zero Page)
-                trace_log!(self, "STA");
+                trace_log!(self, "STA zp");
                 let addr = self.get_next_byte() as u16;
+                self.memory.write(addr, self.a);
+                self.wait_n_cycle(1);
+            },
+            0x95 => { // STA - Store A  (Zero Page,X)
+                trace_log!(self, "STA zp,x");
+                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16);
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(1);
             },
