@@ -913,6 +913,28 @@ impl Cpu {
                 self.a = Self::lsr(self.a, &mut self.p);
                 self.wait_n_cycle(1);
             },
+            0x46 => { // LSR - Logical Shift Right
+                trace_log!(self, "LSR zp");
+                let addr = self.get_next_byte() as u16;
+                self.rmw_modify(addr, Cpu::lsr);  
+            },
+            0x56 => { // LSR - Logical Shift Right
+                trace_log!(self, "LSR zp,x");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                self.rmw_modify(addr, Cpu::lsr);  
+            },
+            0x4E => { // LSR - Logical Shift Right
+                trace_log!(self, "LSR abs");
+                let addr = self.get_next_u16();
+                self.rmw_modify(addr, Cpu::lsr);  
+            },
+            0x5E => { // LSR - Logical Shift Right
+                trace_log!(self, "LSR abs,x");
+                let addr = self.get_next_u16();
+                let addr = self.zp_x(addr as u8);
+                self.rmw_modify(addr, Cpu::lsr);  
+            },
             0x6A => { // ROR - Rotate Right
                 trace_log!(self, "ROR A");
                 self.a = Cpu::ror(self.a, &mut self.p);
