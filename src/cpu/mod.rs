@@ -593,8 +593,66 @@ impl Cpu {
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(2);
             },
-            0x01 => { // ORA - Bitwise OR #(Indirect,X)
+            0x09 => { // ORA - Bitwise OR #Immediate
                 trace_log!(self, "ORA");
+                let value = self.get_next_byte();
+                self.a |= value;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(4);
+            },
+            0x05 => { // ORA - Bitwise OR #Zero Page
+                trace_log!(self, "ORA, zp");
+                let addr = self.get_next_byte() as u16;
+                let val  = self.memory.read(addr);
+                self.a |= val;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0x15 => { // ORA - Bitwise OR #Zero Page,X
+                trace_log!(self, "ORA zp,X");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                let val  = self.memory.read(addr);
+                self.a |= val;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(2);
+            },
+            0x0D => { // ORA - Bitwise OR #Absolute
+                trace_log!(self, "ORA abs");
+                let addr = self.get_next_u16();
+                let val  = self.memory.read(addr);
+                self.a |= val;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0x1D => { // ORA - Bitwise OR #Absolute,X
+                trace_log!(self, "ORA abs,X");
+                let addr = self.get_next_u16();
+                let addr = self.a_x(addr);
+                let val  = self.memory.read(addr);
+                self.a |= val;
+                self.p.set_zn(self.a);
+                if (addr & 0xFF00) != ((addr.wrapping_sub(self.x as u16)) & 0xFF00) {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0x19 => { // ORA - Bitwise OR #Absolute,Y
+                trace_log!(self, "ORA abs,Y");
+                let addr = self.get_next_u16();
+                let addr = self.a_y(addr);
+                let val  = self.memory.read(addr);
+                self.a |= val;
+                self.p.set_zn(self.a);
+                if (addr & 0xFF00) != ((addr.wrapping_sub(self.y as u16)) & 0xFF00) {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0x01 => { // ORA - Bitwise OR #(Indirect,X)
+                trace_log!(self, "ORA (ind,X)");
                 let zp   = self.get_next_byte();
                 let addr = self.zp_ptr_x(zp, self.x);
                 let val  = self.memory.read(addr);
@@ -602,12 +660,19 @@ impl Cpu {
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(4);
             },
-            0x09 => { // ORA - Bitwise OR #Immediate
-                trace_log!(self, "ORA");
-                let value = self.get_next_byte();
-                self.a |= value;
+            0x11 => { // ORA - Bitwise OR #(Indirect),Y
+                trace_log!(self, "ORA (ind),Y");
+                let zp = self.get_next_byte();
+                let base = self.zp_ptr(zp);
+                let addr = base.wrapping_add(self.y as u16);
+                let val  = self.memory.read(addr);
+                self.a |= val;
                 self.p.set_zn(self.a);
-                self.wait_n_cycle(4);
+                if (addr & 0xFF00) != ((base.wrapping_sub(self.y as u16)) & 0xFF00) {
+                    self.wait_n_cycle(4);
+                } else {
+                    self.wait_n_cycle(3);
+                }
             },
             // Bitwise Exclusive OR
             0x49 => {
