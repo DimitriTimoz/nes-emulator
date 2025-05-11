@@ -140,7 +140,7 @@ impl Cpu {
     fn wait_n_cycle(&mut self, n: u8) {
         let cycle_time = Duration::from_nanos((1_000_000_000 / Cpu_FREQUENCY) as u64);
         let wait_time = cycle_time * n as u32;
-        std::thread::sleep(wait_time);
+        //std::thread::sleep(wait_time);
         // TODO: take into account the emulator speed
         self.last_cycle_time = wait_time;
     }
@@ -784,25 +784,18 @@ impl Cpu {
             },
             0xF9 => { // SBC - Subtract with Carry
                 trace_log!(self, "SBC abs,Y");
-                let base_addr = self.get_next_u16();
-                let addr = base_addr.wrapping_add(self.y as u16);
-                let value  = self.memory.read(addr);
+                let base = self.get_next_u16();
+                let addr = self.a_y(base);
+                let value = self.memory.read(addr);
                 self.sbc(value);
-                if (base_addr & 0xFF00) != (addr & 0xFF00) {
-                    self.wait_n_cycle(2);
-                } else {
-                    self.wait_n_cycle(1);
-                }
+                self.page_cross(base, addr, 1, 2);
             },
             0xE1 => { // SBC - Subtract with Carry
                 trace_log!(self, "SBC (ind,X)");
                 let zp   = self.get_next_byte();
                 let addr = self.zp_ptr_x(zp, self.x);
                 let value  = self.memory.read(addr);
-                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
-                let (a, carry2)  = self.a.overflowing_add(value);
-                self.a = a;
-                self.p.set_all(a, carry || carry2);
+                self.sbc(value);
                 self.wait_n_cycle(4);
             },
             0xF1 => { // SBC - Subtract with Carry
@@ -811,15 +804,8 @@ impl Cpu {
                 let base = self.zp_ptr(zp);
                 let addr = base.wrapping_add(self.y as u16);
                 let value  = self.memory.read(addr);
-                let (value, carry) = (!value).overflowing_add(self.p.is_set(StatusFlags::Carry) as u8); 
-                let (a, carry2)  = self.a.overflowing_add(value);
-                self.a = a;
-                self.p.set_all(a, carry || carry2);
-                if (base & 0xFF00) != (addr & 0xFF00) {
-                    self.wait_n_cycle(4);
-                } else {
-                    self.wait_n_cycle(3);
-                }
+                self.sbc(value);
+                self.page_cross(base, addr, 3, 4);
             },
             0x69 => { // ADC - Add with Carry
                 trace_log!(self, "ADC");
@@ -854,11 +840,7 @@ impl Cpu {
                 let addr = base_addr.wrapping_add(self.x as u16);
                 let value = self.memory.read(addr);
                 self.adc(value);
-                if (base_addr & 0xFF00) != (addr & 0xFF00) {
-                    self.wait_n_cycle(2);
-                } else {
-                    self.wait_n_cycle(1);
-                }
+                self.page_cross(base_addr, addr, 1, 2);
             },
             0x79 => { // ADC - Add with Carry Absolute,Y
                 trace_log!(self, "ADC (abs,Y)");
@@ -866,11 +848,7 @@ impl Cpu {
                 let addr = base_addr.wrapping_add(self.y as u16);
                 let value = self.memory.read(addr);
                 self.adc(value);
-                if (base_addr & 0xFF00) != (addr & 0xFF00) {
-                    self.wait_n_cycle(2);
-                } else {
-                    self.wait_n_cycle(1);
-                }
+                self.page_cross(base_addr, addr, 1, 2);
             },
             0x61 => { // ADC - Add with Carry (Indirect,X)
                 trace_log!(self, "ADC (ind,X)");
@@ -887,11 +865,7 @@ impl Cpu {
                 let addr = base.wrapping_add(self.y as u16);
                 let value = self.memory.read(addr);
                 self.adc(value);
-                if (base & 0xFF00) != (addr & 0xFF00) {
-                    self.wait_n_cycle(4);
-                } else {
-                    self.wait_n_cycle(3);
-                }
+                self.page_cross(base, addr, 3, 4);
             },
             0xC9 => { // CMP - Compare A
                 trace_log!(self, "CMP");
@@ -945,11 +919,7 @@ impl Cpu {
                 
                 let value = self.memory.read(addr);
                 self.cmp(self.a, value);
-                if crossed {
-                    self.wait_n_cycle(2);
-                } else {
-                    self.wait_n_cycle(1);
-                }
+                self.page_cross(base_addr, addr, 1, 2);
             },
             0xC1 => { // CMP - (Indirect,X)	
                 trace_log!(self, "CMP (Indirect, X)");
@@ -966,11 +936,7 @@ impl Cpu {
                 let addr = base.wrapping_add(self.y as u16);
                 let value = self.memory.read(addr);
                 self.cmp(self.a, value);
-                if (base & 0xFF00) != (addr & 0xFF00) {
-                    self.wait_n_cycle(2);
-                } else {
-                    self.wait_n_cycle(1);
-                }
+                self.page_cross(base, addr, 1, 2);
             },
             0x29 => { // AND - Bitwise AND #Immediate
                 trace_log!(self, "AND");

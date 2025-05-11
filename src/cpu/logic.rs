@@ -103,19 +103,20 @@ impl Cpu {
     }
 
     #[inline]
-    pub(crate) fn adc(&mut self, value: u8) {
-        let carry_in = self.p.is_set(StatusFlags::Carry) as u16;
-        let sum = self.a as u16 + value as u16 + carry_in;
-        let result = (sum & 0xFF) as u8;
+    pub(crate) fn adc(&mut self, v: u8) {
+        let a      = self.a;
+        let carry  = self.p.is_set(StatusFlags::Carry) as u8;
+        let (sum1, c1) = a.overflowing_add(v);
+        let (res , c2) = sum1.overflowing_add(carry);
 
-        // Flags
-        let carry_out = sum > 0xFF;
-        let overflow = ((self.a ^ result) & (value ^ result) & 0x80) != 0;
+        // flags
+        self.p.set_state(StatusFlags::Carry, c1 || c2);
+        // overflow = (~(a ^ v) & (a ^ res)) bit 7
+        let ovf = (!(a ^ v) & (a ^ res) & 0x80) != 0;
+        self.p.set_state(StatusFlags::Overflow, ovf);
+        self.p.set_zn(res);
 
-        self.a = result;
-        self.p.set_zn(result);
-        self.p.set_state(StatusFlags::Carry, carry_out);
-        self.p.set_state(StatusFlags::Overflow, overflow);
+        self.a = res;
     }
 
     #[inline]
@@ -124,4 +125,12 @@ impl Cpu {
         self.adc(!value);
     }
 
+    #[inline]
+    pub(crate) fn page_cross(&mut self, base: u16, addr: u16, same: u8, crossed: u8) {
+        if (base & 0xFF00) != (addr & 0xFF00) {
+            self.wait_n_cycle(crossed);
+        } else {
+            self.wait_n_cycle(same);
+        }
+    }
 }
