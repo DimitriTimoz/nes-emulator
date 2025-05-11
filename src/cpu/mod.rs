@@ -155,7 +155,7 @@ impl Cpu {
     pub fn push(&mut self, value: u8) {
         let stack_addr =  self.s as u16 + STACK_START;
         self.memory.write(stack_addr, value);
-        self.s -= 1;
+        self.s = self.s.wrapping_sub(1);
     }
 
     pub fn push_u16(&mut self, value: u16) {
@@ -501,6 +501,12 @@ impl Cpu {
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(2);
             },
+            0x99 => { // STA - Store A #Absolute,Y	
+                trace_log!(self, "STA");
+                let addr = self.get_next_u16().wrapping_add(self.y as u16);
+                self.memory.write(addr, self.a);
+                self.wait_n_cycle(2);
+            },
             0x01 => { // ORA - Bitwise OR #(Indirect,X)
                 trace_log!(self, "ORA");
                 let value = self.get_next_byte();
@@ -669,6 +675,32 @@ impl Cpu {
                 self.p.set_zn(self.x);
                 self.wait_n_cycle(1);
             },
+            0xB6 => { // LDX - Load X #Zero Page,Y	
+                trace_log!(self, "LDX");
+                let addr = (self.get_next_byte() as u16).wrapping_add(self.y as u16);
+                self.x = self.memory.read(addr);
+                self.p.set_zn(self.x);
+                self.wait_n_cycle(1);
+            },
+            0xAE => { // LDX - Load X #Absolute
+                trace_log!(self, "LDX");
+                let addr = self.get_next_u16();
+                self.x = self.memory.read(addr);
+                self.p.set_zn(self.x);
+                self.wait_n_cycle(1);
+            },
+            0xBE => { // LDX - Load X #Absolute,Y
+                trace_log!(self, "LDX");
+                let base_addr = self.get_next_u16();
+                let addr= base_addr.wrapping_add(self.y as u16);
+                self.x = self.memory.read(addr);
+                self.p.set_zn(self.x);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
             0xCA => { // DEX - Decrement X
                 trace_log!(self, "DEX");
                 self.x = self.x.wrapping_sub(1);
@@ -727,7 +759,6 @@ impl Cpu {
             0x9A => { // TXS - Transfer X to S
                 trace_log!(self, "TXS");
                 self.s= self.x;
-                self.p.set_zn(self.s);
                 self.wait_n_cycle(1);
             }
             _ => {
