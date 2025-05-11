@@ -56,6 +56,10 @@ impl StatusFlag {
         self.set_state(StatusFlags::Negative, (value & (1 << 7)) != 0)
     }
 
+    fn test_overflow(&mut self, value: u8) {
+        self.set_state(StatusFlags::Overflow, (value & (1 << 6)) != 0);
+    }
+
     fn set_zn(&mut self, value: u8) {
         self.test_zero(value);
         self.test_negative(value);
@@ -300,13 +304,24 @@ impl Cpu {
             0xB0 => { trace_log!(self,"BCS"); self.branch( self.p.is_set(StatusFlags::Carry)); }
             0x50 => { trace_log!(self,"BVC"); self.branch(!self.p.is_set(StatusFlags::Overflow)); }
             0x70 => { trace_log!(self,"BVS"); self.branch( self.p.is_set(StatusFlags::Overflow)); }
+            0x24 => { // BIT - Bit Test (Zero Page)
+                trace_log!(self, "BIT zp");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                let result = value & self.a;
+                self.p.test_zero(result);
+                self.p.test_negative(value);
+                self.p.test_overflow(value);
+                self.wait_n_cycle(1);
+            },
             0x2C => { // BIT - Bit Test (Absolute)
                 trace_log!(self, "BIT");
                 let addr = self.get_next_u16();
                 let value = self.memory.read(addr);
-                let result = value | self.a;
-                self.p.set_zn(result);
-                self.p.set_overflow(result);
+                let result = value & self.a;
+                self.p.test_zero(result);
+                self.p.test_negative(value);
+                self.p.test_overflow(value);
                 self.wait_n_cycle(1);
             },
             0x20 => { // JSR - Jump to Subroutine
@@ -708,8 +723,8 @@ impl Cpu {
                     self.wait_n_cycle(1);
                 }
             },
-            0xD9 => { // CMP - Compare A Absolute
-                trace_log!(self, "CMP (Absolute, y)");
+            0xD9 => { // CMP - Compare A Absolute,y
+                trace_log!(self, "CMP Absolute, y");
                 
                 let base_addr = self.get_next_u16();
                 let addr = base_addr.wrapping_add(self.y as u16);
@@ -722,6 +737,15 @@ impl Cpu {
                 } else {
                     self.wait_n_cycle(1);
                 }
+            },
+            0xC1 => { // CMP - (Indirect,X)	
+                trace_log!(self, "CMP (Indirect, X)");
+                let zp = self.get_next_byte();
+                let zp_ptr = zp.wrapping_add(self.x);
+                let addr = self.memory.read_u16(zp_ptr as u16);
+                let value = self.memory.read(addr);
+                self.cmp(self.a, value);
+                self.wait_n_cycle(4);
             },
             0xD1 => { // CMP - (Indirect),Y	
                 trace_log!(self, "CMP (Indirect),Y");
