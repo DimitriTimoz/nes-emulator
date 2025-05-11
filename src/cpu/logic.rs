@@ -39,6 +39,15 @@ impl Cpu {
     #[inline]
     pub(crate) fn zp_y(&mut self, base: u8) -> u16 { base.wrapping_add(self.y) as u16 }
     #[inline]
+    pub (crate) fn zpa_x(&self, base: u16) -> u16 {
+        base.wrapping_add(self.x as u16)
+    }
+    #[inline]
+    pub (crate) fn zpa_y(&self, zp: u8) -> u16 {
+        zp.wrapping_add(self.y) as u16
+    }
+
+    #[inline]
     pub(crate) fn zp_ptr_x(&self, zp: u8, x: u8) -> u16 {
         self.zp_ptr(zp.wrapping_add(x))
     }

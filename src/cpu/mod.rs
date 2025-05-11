@@ -900,7 +900,7 @@ impl Cpu {
             0x1E => { // ASL - Arithmetic Shift Left
                 trace_log!(self, "ASL abs,x");
                 let addr = self.get_next_u16();
-                let addr = self.zp_x(addr as u8);
+                let addr = self.zpa_x(addr);
                 self.rmw_modify(addr, Cpu::asl);  
             },
             0x2A => { // ROL - Rotate Left
@@ -932,7 +932,7 @@ impl Cpu {
             0x5E => { // LSR - Logical Shift Right
                 trace_log!(self, "LSR abs,x");
                 let addr = self.get_next_u16();
-                let addr = self.zp_x(addr as u8);
+                let addr = self.zpa_x(addr);
                 self.rmw_modify(addr, Cpu::lsr);  
             },
             0x6A => { // ROR - Rotate Right
@@ -945,29 +945,43 @@ impl Cpu {
                 let addr = self.get_next_byte() as u16;
                 self.rmw_modify(addr, Cpu::rol);  
             },
+            0x36 => { // ROL - Rotate Left
+                trace_log!(self, "ROL zp,x");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                self.rmw_modify(addr, Cpu::rol);  
+            },
             0x2E => { // ROL - Rotate Left
                 trace_log!(self, "ROL abs");
                 let addr = self.get_next_u16();
                 self.rmw_modify(addr, Cpu::rol);  
             },
-            0x46 => { // LSR - Logical Shift Right
-                trace_log!(self, "LSR zp");
-                let addr = self.get_next_byte() as u16;
-                self.rmw_modify(addr, Cpu::lsr);  
-            },
-            0x4E => { // LSR - Logical Shift Right
-                trace_log!(self, "LSR abs");
+            0x3E => { // ROL - Rotate Left
+                trace_log!(self, "ROL abs,x");
                 let addr = self.get_next_u16();
-                self.rmw_modify(addr, Cpu::lsr);  
+                let addr = self.zpa_x(addr);
+                self.rmw_modify(addr, Cpu::rol);  
             },
             0x66 => { // ROR - Rotate Right
                 trace_log!(self, "ROR zp");
                 let addr = self.get_next_byte() as u16;
                 self.rmw_modify(addr, Cpu::ror);  
             },
+            0x76 => { // ROR - Rotate Right
+                trace_log!(self, "ROR zp,x");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                self.rmw_modify(addr, Cpu::ror);  
+            },
             0x6E => { // ROR - Rotate Right
                 trace_log!(self, "ROR abs");
                 let addr = self.get_next_u16();
+                self.rmw_modify(addr, Cpu::ror);  
+            },
+            0x7E => { // ROR - Rotate Right
+                trace_log!(self, "ROR abs,x");
+                let addr = self.get_next_u16();
+                let addr = self.zpa_x(addr);
                 self.rmw_modify(addr, Cpu::ror);  
             },
             _ => {
