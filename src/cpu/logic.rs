@@ -101,4 +101,27 @@ impl Cpu {
         p.set_zn(res);
         res
     }
+
+    #[inline]
+    pub(crate) fn adc(&mut self, value: u8) {
+        let carry_in = self.p.is_set(StatusFlags::Carry) as u16;
+        let sum = self.a as u16 + value as u16 + carry_in;
+        let result = (sum & 0xFF) as u8;
+
+        // Flags
+        let carry_out = sum > 0xFF;
+        let overflow = ((self.a ^ result) & (value ^ result) & 0x80) != 0;
+
+        self.a = result;
+        self.p.set_zn(result);
+        self.p.set_state(StatusFlags::Carry, carry_out);
+        self.p.set_state(StatusFlags::Overflow, overflow);
+    }
+
+    #[inline]
+    pub(crate) fn sbc(&mut self, value: u8) {
+        // SBC = A + (~value) + C
+        self.adc(!value);
+    }
+
 }
