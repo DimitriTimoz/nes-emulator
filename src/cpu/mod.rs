@@ -881,6 +881,28 @@ impl Cpu {
                 self.a = Self::asl(self.a, &mut self.p);
                 self.wait_n_cycle(1);
             },
+            0x06 => { // ASL - Arithmetic Shift Left
+                trace_log!(self, "ASL zp");
+                let addr = self.get_next_byte() as u16;
+                self.rmw_modify(addr, Cpu::asl);  
+            },
+            0x0E => { // ASL - Arithmetic Shift Left
+                trace_log!(self, "ASL abs");
+                let addr = self.get_next_u16();
+                self.rmw_modify(addr, Cpu::asl);  
+            },
+            0x16 => { // ASL - Arithmetic Shift Left
+                trace_log!(self, "ASL zp,x");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                self.rmw_modify(addr, Cpu::asl);  
+            },
+            0x1E => { // ASL - Arithmetic Shift Left
+                trace_log!(self, "ASL abs,x");
+                let addr = self.get_next_u16();
+                let addr = self.zp_x(addr as u8);
+                self.rmw_modify(addr, Cpu::asl);  
+            },
             0x2A => { // ROL - Rotate Left
                 trace_log!(self, "ROL a");
                 self.a = Self::rol(self.a, &mut self.p);
