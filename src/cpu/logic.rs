@@ -30,14 +30,18 @@ impl Cpu {
         self.p.set_zn(self.a);
     }
 
-    pub(crate) fn zp_ptr(&self, zp_addr: u8) -> u16 {
-        let lo = self.memory.read(zp_addr as u16) as u16;
-        let hi = self.memory.read(zp_addr.wrapping_add(1) as u16) as u16;
+    pub(crate) fn zp_ptr(&self, zp: u8) -> u16 {
+        let lo = self.memory.read(zp as u16) as u16;
+        let hi = self.memory.read(zp.wrapping_add(1) as u16) as u16;
         (hi << 8) | lo
     }
 
-    pub(crate) fn zp_ptr_x(&self, zp_addr: u8, x: u8) -> u16 {
-        self.zp_ptr(zp_addr.wrapping_add(x))
+    #[inline]
+    pub(crate) fn zp_x(&mut self, base: u8) -> u16 { base.wrapping_add(self.x) as u16 }
+    #[inline]
+    pub(crate) fn zp_y(&mut self, base: u8) -> u16 { base.wrapping_add(self.y) as u16 }
+    #[inline]
+    pub(crate) fn zp_ptr_x(&self, zp: u8, x: u8) -> u16 {
+        self.zp_ptr(zp.wrapping_add(x))
     }
-
 }

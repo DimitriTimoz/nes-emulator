@@ -477,7 +477,8 @@ impl Cpu {
             },
             0xB5 => { // LDA - Load A #Zero Page,X	
                 trace_log!(self, "LDA");
-                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16);
+                let base =  self.get_next_byte();
+                let addr = self.zp_x(base);
                 self.a = self.memory.read(addr);
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(1);
@@ -513,9 +514,9 @@ impl Cpu {
             },
             0xA1 => { // LDA - Load A (Indirect,X)	
                 trace_log!(self, "LDA (ind,X)");
-                let zp = self.get_next_byte();
+                let zp   = self.get_next_byte();
                 let addr = self.zp_ptr_x(zp, self.x);
-                self.a = self.memory.read(addr);
+                self.a   = self.memory.read(addr);
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(4);              
             },
@@ -542,7 +543,8 @@ impl Cpu {
             },
             0x95 => { // STA - Store A  (Zero Page,X)
                 trace_log!(self, "STA zp,x");
-                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16);
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(1);
             },
@@ -553,6 +555,13 @@ impl Cpu {
                 let addr = base.wrapping_add(self.y as u16);
                 self.memory.write(addr, self.a);
                 self.wait_n_cycle(4);
+            },
+            0x81 => {
+                trace_log!(self, "STA (ind,X)");
+                let zp   = self.get_next_byte();
+                let addr = self.zp_ptr_x(zp, self.x);
+                self.memory.write(addr, self.a);
+                self.wait_n_cycle(5);
             },
             0x9D => { // STA - Store A #Absolute,X	
                 trace_log!(self, "STA");
@@ -568,11 +577,10 @@ impl Cpu {
             },
             0x01 => { // ORA - Bitwise OR #(Indirect,X)
                 trace_log!(self, "ORA");
-                let value = self.get_next_byte();
-                let zp_addr =  value.wrapping_add(self.x);
-                let effective_addr = self.memory.read(zp_addr as u16);
-                let value = self.memory.read(effective_addr as u16);
-                self.a |= value;
+                let zp   = self.get_next_byte();
+                let addr = self.zp_ptr_x(zp, self.x);
+                let val  = self.memory.read(addr);
+                self.a |= val;
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(4);
             },
@@ -598,7 +606,8 @@ impl Cpu {
             },
             0x55 => { // Zero Page,X
                 trace_log!(self, "EOR");
-                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16);
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
                 let value = self.memory.read(addr);
                 self.bitwise_xor(value);
                 self.wait_n_cycle(2);
@@ -670,8 +679,9 @@ impl Cpu {
                 self.wait_n_cycle(1);
             },
             0xD5 => { // CMP - Compare (Zero Page,x)
-                trace_log!(self, "CMP (Zero Page, x)");
-                let addr = (self.get_next_byte() as u16).wrapping_add(self.x as u16);
+                trace_log!(self, "CMP zp,X");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
                 let value = self.memory.read(addr);
                 self.cmp(self.a, value);
                 self.wait_n_cycle(1);
@@ -708,6 +718,19 @@ impl Cpu {
                 let value = self.memory.read(addr);
                 self.cmp(self.a, value);
                 if crossed {
+                    self.wait_n_cycle(2);
+                } else {
+                    self.wait_n_cycle(1);
+                }
+            },
+            0xD1 => { // CMP - (Indirect),Y	
+                trace_log!(self, "CMP (Indirect),Y");
+                let zp = self.get_next_byte();
+                let base = self.zp_ptr(zp);
+                let addr = base.wrapping_add(self.y as u16);
+                let value = self.memory.read(addr);
+                self.cmp(self.a, value);
+                if (base & 0xFF00) != (addr & 0xFF00) {
                     self.wait_n_cycle(2);
                 } else {
                     self.wait_n_cycle(1);
