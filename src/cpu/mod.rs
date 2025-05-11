@@ -984,6 +984,44 @@ impl Cpu {
                 let addr = self.zpa_x(addr);
                 self.rmw_modify(addr, Cpu::ror);  
             },
+            0xC6 => { // DEC - Decrement Memory
+                trace_log!(self, "DEC zp");
+                let addr = self.get_next_byte() as u16;
+                let mut value = self.memory.read(addr);
+                value = value.wrapping_sub(1);
+                self.memory.write(addr, value);
+                self.p.set_zn(value);
+                self.wait_n_cycle(3);
+            },
+            0xD6 => { // DEC - Decrement Memory
+                trace_log!(self, "DEC zp,x");
+                let addr = self.get_next_byte();
+                let addr = self.zp_x(addr);
+                let mut value = self.memory.read(addr);
+                value = value.wrapping_sub(1);
+                self.memory.write(addr, value);
+                self.p.set_zn(value);
+                self.wait_n_cycle(3);
+            },
+            0xCE => { // DEC - Decrement Memory
+                trace_log!(self, "DEC abs");
+                let addr = self.get_next_u16();
+                let mut value = self.memory.read(addr);
+                value = value.wrapping_sub(1);
+                self.memory.write(addr, value);
+                self.p.set_zn(value);
+                self.wait_n_cycle(3);
+            },
+            0xDE => { // DEC - Decrement Memory
+                trace_log!(self, "DEC abs,x");
+                let addr = self.get_next_u16();
+                let addr = self.zpa_x(addr);
+                let mut value = self.memory.read(addr);
+                value = value.wrapping_sub(1);
+                self.memory.write(addr, value);
+                self.p.set_zn(value);
+                self.wait_n_cycle(3);
+            },
             _ => {
                 panic!("Unknown RMW instruction: {:#X}", opcode);
             }
