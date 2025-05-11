@@ -209,11 +209,16 @@ impl Cpu {
     }
 
     fn instruction_step(&mut self, opcode: u8) {
-
         match opcode {
+            0x58 => { // CLI - Clear Interrupt Disable
+                trace_log!(self, "CLI");
+                self.p.clear(StatusFlags::InterruptDisable);
+                self.wait_n_cycle(1);
+            },
             0x78 => { // SEI
                 trace_log!(self, "SEI");
                 self.p.set(StatusFlags::InterruptDisable);
+                self.wait_n_cycle(1);
             }
             0xD8 => { // CLD
                 trace_log!(self, "CLD");
@@ -491,6 +496,13 @@ impl Cpu {
                 let zp_addr =  value.wrapping_add(self.x);
                 let effective_addr = self.memory.read(zp_addr as u16);
                 let value = self.memory.read(effective_addr as u16);
+                self.a |= value;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(4);
+            },
+            0x09 => { // ORA - Bitwise OR #Immediate
+                trace_log!(self, "ORA");
+                let value = self.get_next_byte();
                 self.a |= value;
                 self.p.set_zn(self.a);
                 self.wait_n_cycle(4);
