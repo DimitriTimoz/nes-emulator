@@ -222,7 +222,7 @@ impl Cpu {
             }
             0xD8 => { // CLD
                 trace_log!(self, "CLD");
-                self.p.clear(StatusFlags::BFlag);
+                self.p.clear(StatusFlags::Decimal);
             },
             0xA0 => { // LDY - Load Y #Immediate
                 trace_log!(self, "LDY");
