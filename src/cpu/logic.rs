@@ -1,5 +1,3 @@
-use core::panic;
-
 use super::*;
 
 impl Cpu {
@@ -43,5 +41,55 @@ impl Cpu {
     #[inline]
     pub(crate) fn zp_ptr_x(&self, zp: u8, x: u8) -> u16 {
         self.zp_ptr(zp.wrapping_add(x))
+    }
+
+    pub(crate) fn rmw_modify<F>(&mut self, addr: u16, op: F)
+    where
+        F: Fn(u8, &mut StatusFlag) -> u8,
+    {
+        let mut val = self.memory.read(addr);
+        self.wait_n_cycle(1);                 
+
+        self.memory.write(addr, val);
+        self.wait_n_cycle(1);
+
+        val = op(val, &mut self.p);
+
+        self.memory.write(addr, val);
+        self.wait_n_cycle(1);                 
+    }
+
+    pub(crate) fn asl(value: u8, p: &mut StatusFlag) -> u8 {
+        let carry = value & 0x80 != 0;
+        let res   = value << 1;
+        p.set_state(StatusFlags::Carry, carry);
+        p.set_zn(res);
+        res
+    }
+
+    pub(crate) fn rol(value: u8, p: &mut StatusFlag) -> u8 {
+        let carry_in  = p.is_set(StatusFlags::Carry) as u8;
+        let carry_out = value & 0x80 != 0;
+        let res       = (value << 1) | carry_in;
+        p.set_state(StatusFlags::Carry, carry_out);
+        p.set_zn(res);
+        res
+    }
+
+    pub(crate) fn lsr(value: u8, p: &mut StatusFlag) -> u8 {
+        let carry = value & 0x01 != 0;
+        let res   = value >> 1;
+        p.set_state(StatusFlags::Carry, carry);
+        p.set_zn(res);
+        res
+    }
+
+    pub(crate) fn ror(value: u8, p: &mut StatusFlag) -> u8 {
+        let carry_in  = p.is_set(StatusFlags::Carry) as u8;
+        let carry_out = value & 0x01 != 0;
+        let res       = (value >> 1) | (carry_in << 7);
+        p.set_state(StatusFlags::Carry, carry_out);
+        p.set_zn(res);
+        res
     }
 }
