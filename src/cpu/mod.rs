@@ -60,6 +60,10 @@ impl StatusFlag {
         self.set_state(StatusFlags::Overflow, (value & (1 << 6)) != 0);
     }
 
+    fn test_carry(&mut self, value: u8) {
+        self.set_state(StatusFlags::Carry, (value & (1 << 7)) != 0);
+    }
+
     fn set_zn(&mut self, value: u8) {
         self.test_zero(value);
         self.test_negative(value);
@@ -429,8 +433,7 @@ impl Cpu {
             },
             0x28 => { // PLP - Pull Processor Status
                 trace_log!(self, "PLP");
-                self.p.0 &= !0b11001111;
-                self.p.0 |= self.pull() & 0b11001111;
+                self.p.0 = self.pull() | 0x20;
                 self.wait_n_cycle(2);
             },
             0x08 => { // PHP - Push Processor Status
@@ -740,11 +743,10 @@ impl Cpu {
             },
             0xC1 => { // CMP - (Indirect,X)	
                 trace_log!(self, "CMP (Indirect, X)");
-                let zp = self.get_next_byte();
-                let zp_ptr = zp.wrapping_add(self.x);
-                let addr = self.memory.read_u16(zp_ptr as u16);
-                let value = self.memory.read(addr);
-                self.cmp(self.a, value);
+                let zp   = self.get_next_byte();
+                let addr = self.zp_ptr_x(zp, self.x);
+                let val  = self.memory.read(addr);
+                self.cmp(self.a, val);
                 self.wait_n_cycle(4);
             },
             0xD1 => { // CMP - (Indirect),Y	
@@ -874,6 +876,64 @@ impl Cpu {
                 self.s= self.x;
                 self.wait_n_cycle(1);
             }
+            0x0A => { // ASL - Arithmetic Shift Left
+                trace_log!(self, "ASL a");
+                let old = self.a;
+                self.p.set_state(StatusFlags::Carry, old & 0x80 != 0);
+                self.a = old << 1;
+                self.p.set_zn(self.a);
+                self.wait_n_cycle(1);
+            },
+            0x06 => { // ASL - Arithmetic Shift Left (Zero Page)
+                trace_log!(self, "ASL zp");
+                let addr = self.get_next_byte() as u16;
+                let value = self.memory.read(addr);
+                let (result, carry) = value.overflowing_shl(1);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(3);
+            },
+            0x16 => { // ASL - Arithmetic Shift Left (Zero Page,X)
+                trace_log!(self, "ASL zp,x");
+                let base = self.get_next_byte();
+                let addr = self.zp_x(base);
+                let value = self.memory.read(addr);
+                let (result, carry) = value.overflowing_shl(1);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(4);
+            },
+            0x0E => { // ASL - Arithmetic Shift Left (Absolute)
+                trace_log!(self, "ASL");
+                let addr = self.get_next_u16();
+                let value = self.memory.read(addr);
+                let (result, carry) = value.overflowing_shl(1);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, carry);
+                self.memory.write(addr, result);
+                self.wait_n_cycle(3);
+            },
+            0x1E => { // ASL - Arithmetic Shift Left (Absolute,X)
+                trace_log!(self, "ASL");
+                let base_addr = self.get_next_u16();
+                let addr = base_addr.wrapping_add(self.x as u16);
+                let value = self.memory.read(addr);
+                let (result, carry) = value.overflowing_shl(1);
+                self.p.test_negative(result);
+                self.p.test_zero(result);
+                self.p.set_state(StatusFlags::Carry, carry);
+                self.memory.write(addr, result);
+                if (base_addr & 0xFF00) != (addr & 0xFF00) {
+                    self.wait_n_cycle(4);
+                } else {
+                    self.wait_n_cycle(3);
+                }
+            },
             _ => {
                 panic!("Unknown RMW instruction: {:#X}", opcode);
             }
