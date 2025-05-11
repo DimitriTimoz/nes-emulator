@@ -219,10 +219,21 @@ impl Cpu {
                 trace_log!(self, "SEI");
                 self.p.set(StatusFlags::InterruptDisable);
                 self.wait_n_cycle(1);
-            }
+            },
+            0xF8 => { // SED - Set Decimal
+                trace_log!(self, "SED");
+                self.p.set(StatusFlags::Decimal);
+                self.wait_n_cycle(1);
+            },
             0xD8 => { // CLD
                 trace_log!(self, "CLD");
                 self.p.clear(StatusFlags::Decimal);
+                self.wait_n_cycle(1);
+            },
+            0xB8 => { // CLV - Clear Overflow
+                trace_log!(self, "CLV");
+                self.p.clear(StatusFlags::Overflow);
+                self.wait_n_cycle(1);
             },
             0xA0 => { // LDY - Load Y #Immediate
                 trace_log!(self, "LDY");
